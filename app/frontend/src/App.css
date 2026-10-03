@@ -1,0 +1,92 @@
+.layout {
+  display: flex;
+  max-width: 1800px;
+  margin: 0 auto;
+}
+
+.sidebar {
+  width: 250px;
+  flex-shrink: 0;
+  border-right: 1px solid #CDD3D6;
+}
+
+.attributes {
+  width: 320px;
+  flex-shrink: 0;
+  border-left: 1px solid #CDD3D6;
+}
+
+.viewer {
+  flex: 1;
+  min-width: 0;
+  padding: 20px;
+}
+
+/* Tablet and below: stack the three columns instead of side-by-side */
+@media (max-width: 900px) {
+  .layout {
+    flex-direction: column;
+  }
+  .sidebar,
+  .attributes {
+    width: 100%;
+    border: none;
+    border-bottom: 1px solid #CDD3D6;
+  }
+}
+
+.card {
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+}
+
+.upload-dropzone {
+  display: block;
+  border: 2px dashed #CDD3D6;
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.upload-dropzone:hover {
+  border-color: #146CFD;
+  background: #F0F5FF;
+}
+
+.btn-primary {
+  background: #002664;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.btn-primary:hover:not(:disabled) {
+  background: #001642;
+}
+.btn-primary:disabled {
+  background: #CDD3D6;
+  cursor: not-allowed;
+}
+
+.queue-item {
+  transition: filter 0.15s ease;
+}
+.queue-item:hover {
+  filter: brightness(1.15);
+}
+
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
