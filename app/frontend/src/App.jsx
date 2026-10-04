@@ -209,6 +209,7 @@ function App() {
 
                   <div style={{ maxWidth: "720px", margin: "20px auto 0" }}>
                     <VehicleViewer
+                      key={capture.id}
                       images={capture.images || (capture.imageUrl ? [{ url: capture.imageUrl, confidence: null }] : [])}
                       boxes={capture.boxes}
                       highlightLabel={hoveredLabel}

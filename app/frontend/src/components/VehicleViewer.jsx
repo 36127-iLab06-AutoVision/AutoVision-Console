@@ -2,8 +2,17 @@ import { useState } from "react";
 
 function VehicleViewer({ images, boxes, highlightLabel, showBoxes }) {
   const [activeIndex, setActiveIndex] = useState(0);
-  const imageList = images && images.length > 0 ? images : [{ url: null, confidence: null }];
-  const current = imageList[activeIndex];
+
+  // Accept old shapes too: null entries or plain URL strings become { url, confidence }
+  const imageList =
+    images && images.length > 0
+      ? images.map((img) =>
+          img && typeof img === "object" ? img : { url: img ?? null, confidence: null }
+        )
+      : [{ url: null, confidence: null }];
+
+  const current = imageList[activeIndex] || { url: null, confidence: null };
+  const boxList = boxes || [];
 
   const confColor = (c) => (c >= 0.8 ? "#00AA45" : c >= 0.6 ? "#B8860B" : "#E1261C");
 
@@ -36,7 +45,7 @@ function VehicleViewer({ images, boxes, highlightLabel, showBoxes }) {
         )}
 
         {showBoxes &&
-          boxes.map((box, i) => {
+          boxList.map((box, i) => {
             const isHighlighted = highlightLabel === box.label;
             const isDimmed = highlightLabel && !isHighlighted;
             return (
