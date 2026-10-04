@@ -2,7 +2,7 @@
 # GLOBALS                                                                       #
 #################################################################################
 
-PROJECT_NAME = vehicle-metadata-identification-using-machine-learning
+PROJECT_NAME = 36127-iLab06-AutoVision
 PYTHON_VERSION = 3.11.4
 PYTHON_INTERPRETER = python
 
