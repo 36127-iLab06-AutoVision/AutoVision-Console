@@ -1,7 +1,13 @@
 # Vehicle Metadata Identification Using Machine Learning
 
+<a target="_blank" href="https://cookiecutter-data-science.drivendata.org/">
+    <img src="https://img.shields.io/badge/CCDS-Project%20template-328F97?logo=cookiecutter" />
+</a>
+
+Team AutoVision, UTS 36127, iLab Project 06
+
 Review console and integration layer for ML-based vehicle metadata extraction.
-UTS Data Science & Innovation capstone (iLAB Project 06).
+UTS Data Science & Innovation capstone.
 
 ## What this is
 
@@ -9,7 +15,6 @@ A web interface where an analyst can upload vehicle images, see what the model
 detected (make, model, colour, body type, damage, accessories), check the
 confidence of each detection, and correct anything the model got wrong. Every
 correction is recorded in an audit log.
-
 
 ## Repository layout
 
