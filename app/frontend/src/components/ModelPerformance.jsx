@@ -1,15 +1,16 @@
 import ConfidenceBar from "./ConfidenceBar.jsx";
+import { isFlagged, getVehicles } from "../utils/confidence.js";
 
 function average(captures, field) {
-  const sum = captures.reduce((total, cap) => total + cap[field], 0);
-  return sum / captures.length;
+  const scores = captures
+    .flatMap((cap) => getVehicles(cap))
+    .map((v) => v[field])
+    .filter((s) => typeof s === "number");
+  return scores.length > 0 ? scores.reduce((t, s) => t + s, 0) / scores.length : null;
 }
 
 function ModelPerformance({ captures, threshold }) {
-  const flaggedCount = captures.filter((cap) => {
-    const minConf = Math.min(cap.makeConf, cap.modelConf, cap.colorConf, cap.bodyTypeConf);
-    return minConf < threshold;
-  }).length;
+  const flaggedCount = captures.filter((cap) => isFlagged(cap, threshold)).length;
 
   const metrics = [
     { label: "Make", value: average(captures, "makeConf") },
@@ -38,7 +39,11 @@ function ModelPerformance({ captures, threshold }) {
         {metrics.map((m) => (
           <div key={m.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: "1px solid #EBEBEB" }}>
             <span style={{ fontSize: "13px" }}>{m.label}</span>
-            <ConfidenceBar value={m.value} />
+            {m.value === null ? (
+              <span style={{ fontSize: "12px", color: "#98A1AB" }}>Not available</span>
+            ) : (
+              <ConfidenceBar value={m.value} />
+            )}
           </div>
         ))}
       </div>

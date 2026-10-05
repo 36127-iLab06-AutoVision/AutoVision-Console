@@ -45,6 +45,17 @@ let captures = [
     boxes: [{ label: "Vehicle", color: "#146CFD", x: 20, y: 30, w: 60, h: 40 }],
     damage: [{ part: "Rear quarter panel", severity: "Dent", confidence: 0.58 }],
   },
+  {
+    id: "c5", camera: "Test (ML sample, 2 vehicles)", time: "14:05:00", conditions: [], images: [],
+    vehicles: [
+      { id: 1, make: "Toyota", model: "Camry", color: null, bodyType: null,
+        makeConf: 0.91, modelConf: 0.91, colorConf: null, bodyTypeConf: null,
+        box: { x: 9.38, y: 11.11, w: 40.62, h: 54.17 }, features: [], damage: [] },
+      { id: 2, make: "BMW", model: "X5", color: null, bodyType: null,
+        makeConf: 0.87, modelConf: 0.87, colorConf: null, bodyTypeConf: null,
+        box: { x: 55.47, y: 13.89, w: 30.47, h: 45.83 }, features: [], damage: [] },
+    ],
+  },
 ];
 
 // The server now owns the audit log, not the browser.
@@ -60,20 +71,37 @@ app.get("/api/audit", (req, res) => {
 
 app.patch("/api/captures/:id", (req, res) => {
   const { id } = req.params;
-  const { field, value } = req.body;
+  const { field, value, vehicleId } = req.body;
 
   const target = captures.find((c) => c.id === id);
   if (!target) {
     return res.status(404).json({ error: "Capture not found" });
   }
 
-  const oldValue = target[field];
-  captures = captures.map((c) => (c.id === id ? { ...c, [field]: value } : c));
+  let oldValue;
+  let where = target.camera;
+
+  if (vehicleId !== undefined && Array.isArray(target.vehicles)) {
+    const vehicle = target.vehicles.find((v) => v.id === vehicleId);
+    if (!vehicle) {
+      return res.status(404).json({ error: "Vehicle not found" });
+    }
+    oldValue = vehicle[field] ?? "not set";
+    where = `${target.camera}, vehicle ${vehicleId}`;
+    captures = captures.map((c) =>
+      c.id === id
+        ? { ...c, vehicles: c.vehicles.map((v) => (v.id === vehicleId ? { ...v, [field]: value } : v)) }
+        : c
+    );
+  } else {
+    oldValue = target[field] ?? "not set";
+    captures = captures.map((c) => (c.id === id ? { ...c, [field]: value } : c));
+  }
 
   auditLog = [
     {
       time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" }),
-      text: `${field} changed from "${oldValue}" to "${value}" on ${target.camera}`,
+      text: `${field} changed from "${oldValue}" to "${value}" on ${where}`,
     },
     ...auditLog,
   ];

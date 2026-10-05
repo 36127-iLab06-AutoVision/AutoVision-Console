@@ -1,9 +1,11 @@
+import { isFlagged } from "../utils/confidence.js";
+
 function QueueList({ captures, selectedId, onSelect, threshold }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
       {captures.map((cap) => {
-        const minConf = Math.min(cap.makeConf, cap.modelConf, cap.colorConf, cap.bodyTypeConf);
-        const flagged = minConf < threshold;
+        const flagged = isFlagged(cap, threshold);
+        const conditions = cap.conditions || [];
 
         return (
           <button
@@ -32,9 +34,9 @@ function QueueList({ captures, selectedId, onSelect, threshold }) {
               )}
             </div>
 
-            {cap.conditions.length > 0 && (
+            {conditions.length > 0 && (
               <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
-                {cap.conditions.map((tag) => (
+                {conditions.map((tag) => (
                   <span
                     key={tag}
                     style={{

@@ -1,11 +1,12 @@
 import { colors } from "../theme.js";
 import SearchBar from "./SearchBar.jsx";
+import { describeVehicles } from "../utils/confidence.js";
 
 function HistorySearch({ captures, searchQuery, onSearchChange, downloadJson }) {
-  const filtered = captures.filter((c) => {
-    const q = searchQuery.toLowerCase();
-    return c.camera.toLowerCase().includes(q) || c.make.toLowerCase().includes(q) || c.model.toLowerCase().includes(q);
-  });
+  const q = searchQuery.toLowerCase();
+  const filtered = captures.filter(
+    (c) => c.camera.toLowerCase().includes(q) || describeVehicles(c).toLowerCase().includes(q)
+  );
 
   return (
     <div style={{ padding: "20px", maxWidth: "900px" }}>
@@ -33,8 +34,8 @@ function HistorySearch({ captures, searchQuery, onSearchChange, downloadJson }) 
           filtered.map((cap) => (
             <div key={cap.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 16px", borderBottom: `1px solid ${colors.grey04}` }}>
               <div>
-                <div style={{ fontSize: "13px", fontWeight: 600 }}>{cap.camera} — {cap.time}</div>
-                <div style={{ fontSize: "12px", color: colors.grey02 }}>{cap.make} {cap.model}, {cap.color}</div>
+                <div style={{ fontSize: "13px", fontWeight: 600 }}>{cap.camera} - {cap.time}</div>
+                <div style={{ fontSize: "12px", color: colors.grey02 }}>{describeVehicles(cap)}</div>
               </div>
               <button
                 onClick={() => downloadJson(cap, `${cap.id}.json`)}

@@ -1,7 +1,8 @@
-import { colors, gradients } from "./theme.js";
+import { colors } from "./theme.js";
 import { useState, useEffect } from "react";
 import ConfidenceBar from "./components/ConfidenceBar.jsx";
 import VehicleViewer from "./components/VehicleViewer.jsx";
+import VehicleSelector from "./components/VehicleSelector.jsx";
 import AttributeRow from "./components/AttributeRow.jsx";
 import DamageList from "./components/DamageList.jsx";
 import FeatureList from "./components/FeatureList.jsx";
@@ -16,7 +17,12 @@ import ModelPerformance from "./components/ModelPerformance.jsx";
 import AuditLog from "./components/AuditLog.jsx";
 import HistorySearch from "./components/HistorySearch.jsx";
 import SettingsPage from "./components/SettingsPage.jsx";
+import { getVehicles, weakestConfidence, isFlagged } from "./utils/confidence.js";
 import "./App.css";
+
+// Backend address. Locally this falls back to localhost; when published,
+// set VITE_API_URL to the hosted server's address.
+const API = import.meta.env.VITE_API_URL || "http://localhost:4000";
 
 const modelsByMake = {
   Toyota: ["Camry", "Corolla", "RAV4", "Hilux"],
@@ -33,6 +39,7 @@ const PLACEHOLDER_FIELDS = ["Day / night", "Camera / checkpoint ID", "GPS locati
 function App() {
   const [captures, setCaptures] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
+  const [selectedVehicleId, setSelectedVehicleId] = useState(null);
   const [auditLog, setAuditLog] = useState([]);
   const [threshold, setThreshold] = useState(0.75);
   const [toastMessage, setToastMessage] = useState(null);
@@ -45,16 +52,16 @@ function App() {
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
-    fetch("http://localhost:4000/api/captures")
+    fetch(`${API}/api/captures`)
       .then((res) => res.json())
       .then((data) => {
         setCaptures(data);
-        setSelectedId(data[0].id);
+        if (data.length > 0) setSelectedId(data[0].id);
         setLoading(false);
       })
       .catch(() => setServerError(true));
 
-    fetch("http://localhost:4000/api/audit")
+    fetch(`${API}/api/audit`)
       .then((res) => res.json())
       .then((data) => setAuditLog(data))
       .catch(() => setServerError(true));
@@ -76,20 +83,57 @@ function App() {
     );
   }
 
-  if (loading || !capture) {
+  if (loading) {
     return <div style={{ padding: "40px", textAlign: "center" }}>Loading captures...</div>;
   }
 
+  if (!capture) {
+    return <div style={{ padding: "40px", textAlign: "center" }}>No captures available yet.</div>;
+  }
+
+  // A capture can hold several vehicles. Older captures are their own single vehicle.
+  const isMulti = Array.isArray(capture.vehicles) && capture.vehicles.length > 0;
+  const vehicles = getVehicles(capture);
+  const vehicle = vehicles.find((v) => v.id === selectedVehicleId) || vehicles[0];
+
+  // Multi-vehicle images: selected vehicle's box is blue, the others grey.
+  const boxes = isMulti
+    ? capture.vehicles
+        .filter((v) => v.box)
+        .map((v) => ({
+          label: `Vehicle ${v.id}`,
+          color: v.id === vehicle.id ? "#146CFD" : "#7A8CA8",
+          ...v.box,
+        }))
+    : capture.boxes || [];
+
+  const features = vehicle.features || [];
+  const damage = vehicle.damage || [];
+  const weakest = weakestConfidence(capture);
+
   function handleCorrect(field, newValue) {
-    fetch(`http://localhost:4000/api/captures/${selectedId}`, {
+    const body = isMulti
+      ? { field, value: newValue, vehicleId: vehicle.id }
+      : { field, value: newValue };
+
+    fetch(`${API}/api/captures/${selectedId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ field, value: newValue }),
+      body: JSON.stringify(body),
     })
       .then((res) => res.json())
       .then((result) => {
         setCaptures(
-          captures.map((c) => (c.id === selectedId ? { ...c, [field]: newValue } : c))
+          captures.map((c) => {
+            if (c.id !== selectedId) return c;
+            if (isMulti) {
+              return {
+                ...c,
+                vehicles: c.vehicles.map((v) => (v.id === vehicle.id ? { ...v, [field]: newValue } : v)),
+              };
+            }
+            return { ...c, [field]: newValue };
+          })
         );
         setAuditLog(result.auditLog);
         setToastMessage(`${field} updated`);
@@ -98,7 +142,7 @@ function App() {
   }
 
   function handleNewCapture(newCapture) {
-    fetch("http://localhost:4000/api/captures", {
+    fetch(`${API}/api/captures`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(newCapture),
@@ -107,6 +151,7 @@ function App() {
       .then((saved) => {
         setCaptures([saved, ...captures]);
         setSelectedId(saved.id);
+        setSelectedVehicleId(null);
       })
       .catch(() => setServerError(true));
   }
@@ -116,6 +161,7 @@ function App() {
     setFading(true);
     setTimeout(() => {
       setSelectedId(id);
+      setSelectedVehicleId(null);
       setFading(false);
     }, 150);
   }
@@ -130,14 +176,12 @@ function App() {
     URL.revokeObjectURL(url);
   }
 
-  const flaggedCount = captures.filter(
-    (c) => Math.min(c.makeConf, c.modelConf, c.colorConf, c.bodyTypeConf) < threshold
-  ).length;
-  const avgConfidence = Math.round(
-    (captures.reduce((t, c) => t + Math.min(c.makeConf, c.modelConf, c.colorConf, c.bodyTypeConf), 0) /
-      captures.length) *
-      100
-  );
+  const flaggedCount = captures.filter((c) => isFlagged(c, threshold)).length;
+  const scored = captures.map(weakestConfidence).filter((s) => s !== null);
+  const avgConfidence =
+    scored.length > 0
+      ? `${Math.round((scored.reduce((t, s) => t + s, 0) / scored.length) * 100)}%`
+      : "n/a";
 
   return (
     <div style={{ background: colors.paper, minHeight: "100vh", color: colors.grey01, display: "flex" }}>
@@ -164,7 +208,7 @@ function App() {
               {[
                 { label: "Total captures", value: captures.length, color: colors.navy },
                 { label: "Flagged for review", value: flaggedCount, color: colors.red },
-                { label: "Avg. confidence", value: `${avgConfidence}%`, color: colors.green },
+                { label: "Avg. confidence", value: avgConfidence, color: colors.green },
               ].map((stat) => (
                 <div
                   key={stat.label}
@@ -205,17 +249,17 @@ function App() {
                     </label>
                   </div>
 
-                  <ConfidenceBar value={Math.min(capture.makeConf, capture.modelConf, capture.colorConf, capture.bodyTypeConf)} />
+                  {weakest !== null && <ConfidenceBar value={weakest} />}
 
                   <div style={{ maxWidth: "720px", margin: "20px auto 0" }}>
                     <VehicleViewer
                       key={capture.id}
                       images={capture.images || (capture.imageUrl ? [{ url: capture.imageUrl, confidence: null }] : [])}
-                      boxes={capture.boxes}
+                      boxes={boxes}
                       highlightLabel={hoveredLabel}
                       showBoxes={showBoxes}
                     />
-                    <Legend boxes={capture.boxes} hoveredLabel={hoveredLabel} onHover={setHoveredLabel} />
+                    <Legend boxes={boxes} hoveredLabel={hoveredLabel} onHover={setHoveredLabel} />
                     <OtherSightings />
                   </div>
                 </div>
@@ -249,43 +293,45 @@ function App() {
                   <div style={{ textAlign: "right", fontSize: "11px", color: colors.grey02 }}>{Math.round(threshold * 100)}%</div>
                 </div>
 
+                <VehicleSelector vehicles={vehicles} selectedId={vehicle.id} onSelect={setSelectedVehicleId} />
+
                 <strong>Extracted attributes</strong>
                 <div style={{ marginTop: "12px" }}>
                   <AttributeRow
                     label="Make"
-                    value={capture.make}
+                    value={vehicle.make}
                     options={["Toyota", "Ford", "Mazda", "Holden", "Subaru", "Nissan", "BMW"]}
                     onSave={(v) => handleCorrect("make", v)}
                   />
                   <AttributeRow
                     label="Model"
-                    value={capture.model}
-                    options={modelsByMake[capture.make] || []}
+                    value={vehicle.model}
+                    options={modelsByMake[vehicle.make] || []}
                     onSave={(v) => handleCorrect("model", v)}
                   />
                   <AttributeRow
                     label="Colour"
-                    value={capture.color}
+                    value={vehicle.color}
                     options={["Steel Blue", "Red", "Charcoal", "Dark Green", "Gold", "White", "Black"]}
                     onSave={(v) => handleCorrect("color", v)}
                   />
                   <AttributeRow
                     label="Body type"
-                    value={capture.bodyType}
+                    value={vehicle.bodyType}
                     options={["Ute / Pickup", "Sedan", "SUV", "Wagon", "Hatchback", "Van"]}
                     onSave={(v) => handleCorrect("bodyType", v)}
                   />
                 </div>
 
-                {capture.features && (
+                {features.length > 0 && (
                   <>
                     <strong style={{ display: "block", marginTop: "20px" }}>Features</strong>
-                    <FeatureList items={capture.features} />
+                    <FeatureList items={features} />
                   </>
                 )}
 
                 <strong style={{ display: "block", marginTop: "20px" }}>Damage</strong>
-                <DamageList items={capture.damage} />
+                <DamageList items={damage} />
 
                 <strong style={{ display: "block", marginTop: "20px" }}>Additional metadata</strong>
                 <div style={{ fontSize: "11px", color: colors.placeholderText, marginBottom: "8px" }}>
