@@ -1,14 +1,38 @@
 import express from "express";
 import cors from "cors";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { validateCapture, validateCorrection } from "./validate.js";
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: "10mb" }));
 
-let captures = [
+// The repo root is two folders above app/mock-server.
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+const PROCESSED_DIR = path.join(ROOT, "data", "processed");
+
+// Serves the images copied there by the ingest step.
+app.use("/images", express.static(path.join(PROCESSED_DIR, "images")));
+
+// Captures built by the ingest step. Returns an empty list if there are none yet.
+function loadIngested() {
+  const file = path.join(PROCESSED_DIR, "captures.json");
+  if (!fs.existsSync(file)) return [];
+  try {
+    return JSON.parse(fs.readFileSync(file, "utf-8"));
+  } catch (err) {
+    console.error("Could not read captures.json:", err.message);
+    return [];
+  }
+}
+
+const seedCaptures = [
   {
     id: "c1", camera: "Toll Gantry 4B", time: "14:02:11", conditions: ["Oblique angle"],
-    make: "Toyota", model: "Camry", color: "Steel Blue", images: [null, null], bodyType: "Sedan",
+    make: "Toyota", model: "Camry", color: "Steel Blue", bodyType: "Sedan",
+    images: [{ url: null, confidence: 0.94 }, { url: null, confidence: 0.71 }],
     makeConf: 0.94, modelConf: 0.81, colorConf: 0.97, bodyTypeConf: 0.9,
     features: [
       { label: "Roof rack", present: false, confidence: 0.88 },
@@ -45,20 +69,10 @@ let captures = [
     boxes: [{ label: "Vehicle", color: "#146CFD", x: 20, y: 30, w: 60, h: 40 }],
     damage: [{ part: "Rear quarter panel", severity: "Dent", confidence: 0.58 }],
   },
-  {
-    id: "c5", camera: "Test (ML sample, 2 vehicles)", time: "14:05:00", conditions: [], images: [],
-    vehicles: [
-      { id: 1, make: "Toyota", model: "Camry", color: null, bodyType: null,
-        makeConf: 0.91, modelConf: 0.91, colorConf: null, bodyTypeConf: null,
-        box: { x: 9.38, y: 11.11, w: 40.62, h: 54.17 }, features: [], damage: [] },
-      { id: 2, make: "BMW", model: "X5", color: null, bodyType: null,
-        makeConf: 0.87, modelConf: 0.87, colorConf: null, bodyTypeConf: null,
-        box: { x: 55.47, y: 13.89, w: 30.47, h: 45.83 }, features: [], damage: [] },
-    ],
-  },
 ];
 
-// The server now owns the audit log, not the browser.
+// Ingested captures first, then the built-in demo captures.
+let captures = [...loadIngested(), ...seedCaptures];
 let auditLog = [];
 
 app.get("/api/captures", (req, res) => {
@@ -70,18 +84,30 @@ app.get("/api/audit", (req, res) => {
 });
 
 app.patch("/api/captures/:id", (req, res) => {
+  const { errors, correction } = validateCorrection(req.body);
+  if (errors.length > 0) {
+    return res.status(400).json({ error: "Invalid correction", errors });
+  }
+  const { field, value, vehicleId } = correction;
   const { id } = req.params;
-  const { field, value, vehicleId } = req.body;
 
   const target = captures.find((c) => c.id === id);
   if (!target) {
     return res.status(404).json({ error: "Capture not found" });
   }
 
+  const isMulti = Array.isArray(target.vehicles) && target.vehicles.length > 0;
+  if (isMulti && vehicleId === undefined) {
+    return res.status(400).json({ error: "This capture has several vehicles, so vehicleId is required" });
+  }
+  if (!isMulti && vehicleId !== undefined) {
+    return res.status(400).json({ error: "This capture has no vehicles list, so vehicleId is not allowed" });
+  }
+
   let oldValue;
   let where = target.camera;
 
-  if (vehicleId !== undefined && Array.isArray(target.vehicles)) {
+  if (isMulti) {
     const vehicle = target.vehicles.find((v) => v.id === vehicleId);
     if (!vehicle) {
       return res.status(404).json({ error: "Vehicle not found" });
@@ -110,12 +136,31 @@ app.patch("/api/captures/:id", (req, res) => {
 });
 
 app.post("/api/captures", (req, res) => {
-  const newCapture = req.body;
-  captures = [newCapture, ...captures];
-  res.json(newCapture);
+  const { errors, capture } = validateCapture(req.body);
+  if (errors.length > 0) {
+    return res.status(400).json({ error: "Invalid capture", errors });
+  }
+  if (captures.some((c) => c.id === capture.id)) {
+    return res.status(409).json({ error: `A capture with id "${capture.id}" already exists` });
+  }
+  captures = [capture, ...captures];
+  res.status(201).json(capture);
 });
 
-const PORT = 4000;
+// Turns body-parsing problems into JSON instead of an HTML error page.
+app.use((err, req, res, next) => {
+  if (err.type === "entity.parse.failed") {
+    return res.status(400).json({ error: "Request body is not valid JSON" });
+  }
+  if (err.type === "entity.too.large") {
+    return res.status(413).json({ error: "Request is too large (limit 10 MB)" });
+  }
+  console.error(err);
+  res.status(500).json({ error: "Server error" });
+});
+
+const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
   console.log(`Mock API server running at http://localhost:${PORT}`);
+  console.log(`Loaded ${captures.length} captures (${captures.length - seedCaptures.length} ingested)`);
 });

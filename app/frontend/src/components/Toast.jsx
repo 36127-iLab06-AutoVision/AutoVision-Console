@@ -1,4 +1,4 @@
-function Toast({ message }) {
+function Toast({ message, isError }) {
   if (!message) return null;
 
   return (
@@ -8,7 +8,7 @@ function Toast({ message }) {
         top: "50%",
         left: "50%",
         transform: "translate(-50%, -50%)",
-        background: "#22272B",
+        background: isError ? "#E1261C" : "#22272B",
         color: "white",
         padding: "16px 28px",
         borderRadius: "8px",
@@ -17,9 +17,12 @@ function Toast({ message }) {
         boxShadow: "0 8px 24px rgba(0,0,0,0.3)",
         zIndex: 2000,
         animation: "popIn 0.3s ease",
+        maxWidth: "min(90vw, 480px)",
+        textAlign: "center",
       }}
     >
-      ✓ {message}
+      {isError ? "! " : "\u2713 "}
+      {message}
     </div>
   );
 }

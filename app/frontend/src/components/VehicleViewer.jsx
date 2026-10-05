@@ -18,9 +18,21 @@ function VehicleViewer({ images, boxes, highlightLabel, showBoxes }) {
 
   return (
     <div>
-      <div style={{ position: "relative", width: "100%", aspectRatio: "16 / 10", borderRadius: "4px", overflow: "hidden", background: "#101418", border: "1px solid #CDD3D6" }}>
+      <div
+        style={{
+          position: "relative",
+          width: "100%",
+          // A real picture sets its own height, so boxes match it exactly.
+          // The placeholder drawing needs a fixed shape.
+          aspectRatio: current.url ? "auto" : "16 / 10",
+          borderRadius: "4px",
+          overflow: "hidden",
+          background: "#101418",
+          border: "1px solid #CDD3D6",
+        }}
+      >
         {current.url ? (
-          <img src={current.url} alt="Capture" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+          <img src={current.url} alt="Capture" style={{ width: "100%", height: "auto", display: "block" }} />
         ) : (
           <svg viewBox="0 0 400 250" style={{ width: "100%", height: "100%" }}>
             <rect x="0" y="0" width="400" height="250" fill="#101418" />

@@ -24,6 +24,20 @@ import "./App.css";
 // set VITE_API_URL to the hosted server's address.
 const API = import.meta.env.VITE_API_URL || "http://localhost:4000";
 
+// Sends a request. If the server answers but refuses (for example 400 or 409),
+// this throws an error carrying the server's message. A network failure throws as normal.
+async function request(path, options) {
+  const res = await fetch(`${API}${path}`, options);
+  const data = await res.json().catch(() => null);
+  if (!res.ok) {
+    const detail = data?.errors?.length ? `: ${data.errors.slice(0, 2).join("; ")}` : "";
+    const err = new Error(`${data?.error || "Request failed"}${detail}`);
+    err.fromServer = true;
+    throw err;
+  }
+  return data;
+}
+
 const modelsByMake = {
   Toyota: ["Camry", "Corolla", "RAV4", "Hilux"],
   Ford: ["Ranger", "Falcon", "Focus"],
@@ -42,7 +56,7 @@ function App() {
   const [selectedVehicleId, setSelectedVehicleId] = useState(null);
   const [auditLog, setAuditLog] = useState([]);
   const [threshold, setThreshold] = useState(0.75);
-  const [toastMessage, setToastMessage] = useState(null);
+  const [toast, setToast] = useState(null);
   const [fading, setFading] = useState(false);
   const [hoveredLabel, setHoveredLabel] = useState(null);
   const [showBoxes, setShowBoxes] = useState(true);
@@ -52,8 +66,7 @@ function App() {
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
-    fetch(`${API}/api/captures`)
-      .then((res) => res.json())
+    request("/api/captures")
       .then((data) => {
         setCaptures(data);
         if (data.length > 0) setSelectedId(data[0].id);
@@ -61,17 +74,16 @@ function App() {
       })
       .catch(() => setServerError(true));
 
-    fetch(`${API}/api/audit`)
-      .then((res) => res.json())
+    request("/api/audit")
       .then((data) => setAuditLog(data))
       .catch(() => setServerError(true));
   }, []);
 
   useEffect(() => {
-    if (!toastMessage) return;
-    const timer = setTimeout(() => setToastMessage(null), 2500);
+    if (!toast) return;
+    const timer = setTimeout(() => setToast(null), toast.isError ? 5000 : 2500);
     return () => clearTimeout(timer);
-  }, [toastMessage]);
+  }, [toast]);
 
   const capture = captures.find((c) => c.id === selectedId);
 
@@ -111,17 +123,30 @@ function App() {
   const damage = vehicle.damage || [];
   const weakest = weakestConfidence(capture);
 
+  // Image links from the ingest step are relative, so add the server address.
+  const withServer = (url) => (url && url.startsWith("/") ? `${API}${url}` : url);
+  const images = (capture.images || (capture.imageUrl ? [{ url: capture.imageUrl, confidence: null }] : []))
+    .map((img) => ({ ...img, url: withServer(img?.url) }));
+
+  // The server answered but refused: show its message. No answer at all: show the offline page.
+  function handleRequestError(err) {
+    if (err.fromServer) {
+      setToast({ text: err.message, isError: true });
+    } else {
+      setServerError(true);
+    }
+  }
+
   function handleCorrect(field, newValue) {
     const body = isMulti
       ? { field, value: newValue, vehicleId: vehicle.id }
       : { field, value: newValue };
 
-    fetch(`${API}/api/captures/${selectedId}`, {
+    request(`/api/captures/${selectedId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     })
-      .then((res) => res.json())
       .then((result) => {
         setCaptures(
           captures.map((c) => {
@@ -136,24 +161,23 @@ function App() {
           })
         );
         setAuditLog(result.auditLog);
-        setToastMessage(`${field} updated`);
+        setToast({ text: `${field} updated`, isError: false });
       })
-      .catch(() => setServerError(true));
+      .catch(handleRequestError);
   }
 
   function handleNewCapture(newCapture) {
-    fetch(`${API}/api/captures`, {
+    request("/api/captures", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(newCapture),
     })
-      .then((res) => res.json())
       .then((saved) => {
         setCaptures([saved, ...captures]);
         setSelectedId(saved.id);
         setSelectedVehicleId(null);
       })
-      .catch(() => setServerError(true));
+      .catch(handleRequestError);
   }
 
   function handleSelectCapture(id) {
@@ -254,7 +278,7 @@ function App() {
                   <div style={{ maxWidth: "720px", margin: "20px auto 0" }}>
                     <VehicleViewer
                       key={capture.id}
-                      images={capture.images || (capture.imageUrl ? [{ url: capture.imageUrl, confidence: null }] : [])}
+                      images={images}
                       boxes={boxes}
                       highlightLabel={hoveredLabel}
                       showBoxes={showBoxes}
@@ -372,7 +396,7 @@ function App() {
         {activeView === "settings" && <SettingsPage />}
       </div>
 
-      <Toast message={toastMessage} />
+      <Toast message={toast?.text} isError={toast?.isError} />
     </div>
   );
 }
