@@ -16,16 +16,33 @@ const PROCESSED_DIR = path.join(ROOT, "data", "processed");
 // Serves the images copied there by the ingest step.
 app.use("/images", express.static(path.join(PROCESSED_DIR, "images")));
 
-// Captures built by the ingest step. Returns an empty list if there are none yet.
+// Captures built by the ingest step. Each one is checked with the same rules as an
+// upload, so bad data is skipped here with a clear message instead of breaking the
+// interface later. Returns an empty list if there are none yet.
 function loadIngested() {
   const file = path.join(PROCESSED_DIR, "captures.json");
   if (!fs.existsSync(file)) return [];
+  let raw;
   try {
-    return JSON.parse(fs.readFileSync(file, "utf-8"));
+    raw = JSON.parse(fs.readFileSync(file, "utf-8"));
   } catch (err) {
     console.error("Could not read captures.json:", err.message);
     return [];
   }
+  if (!Array.isArray(raw)) {
+    console.error("captures.json should contain a list of captures, so it was ignored");
+    return [];
+  }
+  const good = [];
+  for (const item of raw) {
+    const { errors, capture } = validateCapture(item);
+    if (errors.length > 0) {
+      console.warn(`Skipped ingested capture "${item?.id ?? "unknown"}": ${errors.join("; ")}`);
+    } else {
+      good.push(capture);
+    }
+  }
+  return good;
 }
 
 const seedCaptures = [

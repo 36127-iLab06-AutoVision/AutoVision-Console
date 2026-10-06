@@ -41,9 +41,10 @@ function checkAttributes(item, where, errors) {
       errors.push(`${where}.${key} must be a number from 0 to 1 (not a percentage), or null`);
     }
   }
+  // null means "not assessed" (the model did not look). [] means "looked, found none".
   for (const key of ["features", "damage"]) {
-    if (item[key] !== undefined && !Array.isArray(item[key])) {
-      errors.push(`${where}.${key} must be a list (use [] when empty)`);
+    if (item[key] !== undefined && item[key] !== null && !Array.isArray(item[key])) {
+      errors.push(`${where}.${key} must be a list, [] if none were found, or null if not assessed`);
     }
   }
 }
@@ -112,17 +113,18 @@ export function validateCapture(input) {
 
   if (errors.length > 0) return { errors, capture: null };
 
-  // Fill in the lists the interface relies on, so a missing one can never crash it.
+  // A missing list becomes null ("not assessed"), never [] ("none found"),
+  // so the interface cannot claim a check happened when it did not.
   const capture = { ...input, conditions: input.conditions ?? [] };
   if (input.vehicles === undefined) {
-    capture.features = input.features ?? [];
-    capture.damage = input.damage ?? [];
+    capture.features = input.features ?? null;
+    capture.damage = input.damage ?? null;
     capture.boxes = input.boxes ?? [];
   } else {
     capture.vehicles = input.vehicles.map((v) => ({
       ...v,
-      features: v.features ?? [],
-      damage: v.damage ?? [],
+      features: v.features ?? null,
+      damage: v.damage ?? null,
     }));
   }
   return { errors: [], capture };

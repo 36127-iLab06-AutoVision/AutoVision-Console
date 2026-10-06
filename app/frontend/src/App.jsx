@@ -105,6 +105,8 @@ function App() {
 
   // A capture can hold several vehicles. Older captures are their own single vehicle.
   const isMulti = Array.isArray(capture.vehicles) && capture.vehicles.length > 0;
+  // A capture the model processed but found no vehicles in (vehicles is an empty list).
+  const noVehicles = Array.isArray(capture.vehicles) && capture.vehicles.length === 0;
   const vehicles = getVehicles(capture);
   const vehicle = vehicles.find((v) => v.id === selectedVehicleId) || vehicles[0];
 
@@ -119,8 +121,9 @@ function App() {
         }))
     : capture.boxes || [];
 
-  const features = vehicle.features || [];
-  const damage = vehicle.damage || [];
+  // null means "not assessed", [] means "checked, none found". Keep them apart.
+  const features = vehicle.features ?? null;
+  const damage = vehicle.damage ?? null;
   const weakest = weakestConfidence(capture);
 
   // Image links from the ingest step are relative, so add the server address.
@@ -211,7 +214,7 @@ function App() {
     <div style={{ background: colors.paper, minHeight: "100vh", color: colors.grey01, display: "flex" }}>
       <IconRail activeView={activeView} onNavigate={setActiveView} />
 
-      <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="app-main" style={{ flex: 1, minWidth: 0 }}>
         <Header />
 
         <div style={{ background: colors.white, borderBottom: `1px solid ${colors.grey03}`, padding: "10px 20px", fontSize: "12px", color: colors.grey02 }}>
@@ -228,7 +231,7 @@ function App() {
 
         {activeView === "queue" && (
           <>
-            <div style={{ display: "flex", gap: "16px", padding: "16px 20px 0" }}>
+            <div className="stats-row" style={{ display: "flex", gap: "16px", padding: "16px 20px 0" }}>
               {[
                 { label: "Total captures", value: captures.length, color: colors.navy },
                 { label: "Flagged for review", value: flaggedCount, color: colors.red },
@@ -317,45 +320,70 @@ function App() {
                   <div style={{ textAlign: "right", fontSize: "11px", color: colors.grey02 }}>{Math.round(threshold * 100)}%</div>
                 </div>
 
-                <VehicleSelector vehicles={vehicles} selectedId={vehicle.id} onSelect={setSelectedVehicleId} />
-
-                <strong>Extracted attributes</strong>
-                <div style={{ marginTop: "12px" }}>
-                  <AttributeRow
-                    label="Make"
-                    value={vehicle.make}
-                    options={["Toyota", "Ford", "Mazda", "Holden", "Subaru", "Nissan", "BMW"]}
-                    onSave={(v) => handleCorrect("make", v)}
-                  />
-                  <AttributeRow
-                    label="Model"
-                    value={vehicle.model}
-                    options={modelsByMake[vehicle.make] || []}
-                    onSave={(v) => handleCorrect("model", v)}
-                  />
-                  <AttributeRow
-                    label="Colour"
-                    value={vehicle.color}
-                    options={["Steel Blue", "Red", "Charcoal", "Dark Green", "Gold", "White", "Black"]}
-                    onSave={(v) => handleCorrect("color", v)}
-                  />
-                  <AttributeRow
-                    label="Body type"
-                    value={vehicle.bodyType}
-                    options={["Ute / Pickup", "Sedan", "SUV", "Wagon", "Hatchback", "Van"]}
-                    onSave={(v) => handleCorrect("bodyType", v)}
-                  />
-                </div>
-
-                {features.length > 0 && (
+                {noVehicles ? (
+                  <div
+                    style={{
+                      padding: "20px 16px",
+                      background: colors.grey04,
+                      borderRadius: "8px",
+                      fontSize: "13px",
+                      color: colors.grey02,
+                      textAlign: "center",
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    <strong style={{ display: "block", color: colors.grey01, marginBottom: "4px" }}>No vehicles detected</strong>
+                    The model found no vehicles in this image. If you can see one, flag it for the ML team.
+                  </div>
+                ) : (
                   <>
-                    <strong style={{ display: "block", marginTop: "20px" }}>Features</strong>
-                    <FeatureList items={features} />
+                    <VehicleSelector vehicles={vehicles} selectedId={vehicle.id} onSelect={setSelectedVehicleId} />
+
+                    <strong>Extracted attributes</strong>
+                    <div style={{ marginTop: "12px" }}>
+                      <AttributeRow
+                        label="Make"
+                        value={vehicle.make}
+                        options={["Toyota", "Ford", "Mazda", "Holden", "Subaru", "Nissan", "BMW"]}
+                        onSave={(v) => handleCorrect("make", v)}
+                      />
+                      <AttributeRow
+                        label="Model"
+                        value={vehicle.model}
+                        options={modelsByMake[vehicle.make] || []}
+                        onSave={(v) => handleCorrect("model", v)}
+                      />
+                      <AttributeRow
+                        label="Colour"
+                        value={vehicle.color}
+                        options={["Steel Blue", "Red", "Charcoal", "Dark Green", "Gold", "White", "Black"]}
+                        onSave={(v) => handleCorrect("color", v)}
+                      />
+                      <AttributeRow
+                        label="Body type"
+                        value={vehicle.bodyType}
+                        options={["Ute / Pickup", "Sedan", "SUV", "Wagon", "Hatchback", "Van"]}
+                        onSave={(v) => handleCorrect("bodyType", v)}
+                      />
+                    </div>
+
+                    {(features === null || features.length > 0) && (
+                      <>
+                        <strong style={{ display: "block", marginTop: "20px" }}>Features</strong>
+                        {features === null ? (
+                          <p style={{ fontSize: "13px", color: "#666", fontStyle: "italic" }}>
+                            Not assessed. The model has not checked this vehicle for features.
+                          </p>
+                        ) : (
+                          <FeatureList items={features} />
+                        )}
+                      </>
+                    )}
+
+                    <strong style={{ display: "block", marginTop: "20px" }}>Damage</strong>
+                    <DamageList items={damage} />
                   </>
                 )}
-
-                <strong style={{ display: "block", marginTop: "20px" }}>Damage</strong>
-                <DamageList items={damage} />
 
                 <strong style={{ display: "block", marginTop: "20px" }}>Additional metadata</strong>
                 <div style={{ fontSize: "11px", color: colors.placeholderText, marginBottom: "8px" }}>

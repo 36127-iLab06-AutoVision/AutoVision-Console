@@ -1,3 +1,11 @@
+/* Padding counts inside an element's width everywhere. Without this, a panel set to
+   width: 100% plus padding is wider than the screen and the page scrolls sideways. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 .layout {
   display: flex;
   max-width: 1800px;
@@ -7,12 +15,14 @@
 .sidebar {
   width: 250px;
   flex-shrink: 0;
+  min-width: 0;
   border-right: 1px solid #CDD3D6;
 }
 
 .attributes {
   width: 320px;
   flex-shrink: 0;
+  min-width: 0;
   border-left: 1px solid #CDD3D6;
 }
 
@@ -20,6 +30,14 @@
   flex: 1;
   min-width: 0;
   padding: 20px;
+}
+
+/* The three summary tiles wrap onto new rows on narrow screens. */
+.stats-row {
+  flex-wrap: wrap;
+}
+.stat-tile {
+  min-width: 140px;
 }
 
 /* Tablet and below: stack the three columns instead of side-by-side */
@@ -32,6 +50,57 @@
     width: 100%;
     border: none;
     border-bottom: 1px solid #CDD3D6;
+  }
+}
+
+/* Phone */
+/* Navigation rail: a slim bar down the left on large screens... */
+.icon-rail {
+  width: 68px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 20px;
+  gap: 6px;
+}
+.icon-rail-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+/* ...and a bar along the bottom of the screen on phones, so it stops eating width. */
+@media (max-width: 600px) {
+  .icon-rail {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: 60px;
+    flex-direction: row;
+    justify-content: space-around;
+    align-items: center;
+    padding: 0;
+    gap: 0;
+    z-index: 50;
+  }
+  .app-main {
+    padding-bottom: 68px;
+  }
+}
+
+@media (max-width: 600px) {
+  .viewer {
+    padding: 12px;
   }
 }
 
@@ -74,6 +143,8 @@
 }
 
 .queue-item {
+  min-width: 0;
+  overflow-wrap: anywhere;
   transition: filter 0.15s ease;
 }
 .queue-item:hover {

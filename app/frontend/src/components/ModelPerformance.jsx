@@ -9,12 +9,28 @@ function average(captures, field) {
   return scores.length > 0 ? scores.reduce((t, s) => t + s, 0) / scores.length : null;
 }
 
+// The ML team currently predicts make and model together, so both carry the same score.
+// When every scored vehicle has identical make and model scores, show one combined bar.
+// If the scores ever differ (separate models), show them separately again.
+function makeAndModelAreCombined(captures) {
+  const scored = captures
+    .flatMap((cap) => getVehicles(cap))
+    .filter((v) => typeof v.makeConf === "number" && typeof v.modelConf === "number");
+  return scored.length > 0 && scored.every((v) => v.makeConf === v.modelConf);
+}
+
 function ModelPerformance({ captures, threshold }) {
   const flaggedCount = captures.filter((cap) => isFlagged(cap, threshold)).length;
 
+  const makeModel = makeAndModelAreCombined(captures)
+    ? [{ label: "Make & model", value: average(captures, "makeConf") }]
+    : [
+        { label: "Make", value: average(captures, "makeConf") },
+        { label: "Model", value: average(captures, "modelConf") },
+      ];
+
   const metrics = [
-    { label: "Make", value: average(captures, "makeConf") },
-    { label: "Model", value: average(captures, "modelConf") },
+    ...makeModel,
     { label: "Colour", value: average(captures, "colorConf") },
     { label: "Body type", value: average(captures, "bodyTypeConf") },
   ];

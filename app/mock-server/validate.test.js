@@ -9,12 +9,32 @@ const goodVehicle = {
 };
 const goodCapture = { id: "img_001", camera: "Toll Gantry 4B", time: "14:02:11", vehicles: [goodVehicle] };
 
-test("a good multi-vehicle capture passes and gets default lists", () => {
+test("a good multi-vehicle capture passes; missing lists become null (not assessed)", () => {
   const { errors, capture } = validateCapture(goodCapture);
   assert.deepEqual(errors, []);
   assert.deepEqual(capture.conditions, []);
-  assert.deepEqual(capture.vehicles[0].features, []);
+  assert.equal(capture.vehicles[0].features, null);
+  assert.equal(capture.vehicles[0].damage, null);
+});
+
+test("damage null (not assessed) is accepted and stays null", () => {
+  const { errors, capture } = validateCapture({ ...goodCapture, vehicles: [{ ...goodVehicle, damage: null, features: null }] });
+  assert.deepEqual(errors, []);
+  assert.equal(capture.vehicles[0].damage, null);
+  assert.equal(capture.vehicles[0].features, null);
+});
+
+test("damage [] (checked, none found) is accepted and stays []", () => {
+  const { errors, capture } = validateCapture({ ...goodCapture, vehicles: [{ ...goodVehicle, damage: [], features: [] }] });
+  assert.deepEqual(errors, []);
   assert.deepEqual(capture.vehicles[0].damage, []);
+  assert.deepEqual(capture.vehicles[0].features, []);
+});
+
+test("damage that is not a list or null is rejected", () => {
+  const { errors } = validateCapture({ ...goodCapture, vehicles: [{ ...goodVehicle, damage: "dent" }] });
+  assert.equal(errors.length, 1);
+  assert.match(errors[0], /vehicles\[0\]\.damage.*null if not assessed/);
 });
 
 test("an upload-style single capture passes and keeps imageUrl without adding images", () => {
@@ -28,6 +48,14 @@ test("an upload-style single capture passes and keeps imageUrl without adding im
   const { errors, capture } = validateCapture(upload);
   assert.deepEqual(errors, []);
   assert.equal("images" in capture, false);
+  assert.deepEqual(capture.damage, []);
+});
+
+test("a single capture with no damage field gets null, not []", () => {
+  const { errors, capture } = validateCapture({ id: "x", camera: "c", time: "t", make: "Ford" });
+  assert.deepEqual(errors, []);
+  assert.equal(capture.damage, null);
+  assert.equal(capture.features, null);
 });
 
 test("missing conditions is filled in, not rejected", () => {
