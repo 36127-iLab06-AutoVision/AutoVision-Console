@@ -140,10 +140,49 @@ def test_null_versus_empty_list():
     assert v["damage"] is None and v["features"] is None
 
 
-def test_damage_as_objects_and_strings():
-    v, _ = adapt_vehicle({"bbox": [0, 0, 100, 100], "make": "Kia",
-                          "damage": [{"label": "dent"}, "scratch"]}, W, H)
-    assert v["damage"] == ["dent", "scratch"]
+def test_damage_as_strings_becomes_findings():
+    v, _ = adapt_vehicle({"bbox": [0, 0, 100, 100], "make": "Kia", "damage": [{"label": "dent"}, "scratch"]}, W, H)
+    assert [d["label"] for d in v["damage"]] == ["dent", "scratch"]
+    assert all(d["confidence"] is None and d["box"] is None for d in v["damage"])
+
+
+def test_damage_detector_output_keeps_class_score_and_box():
+    raw = {"bbox": [0, 0, 1280, 720], "make": "Kia", "damage": [
+        {"class": "dent", "confidence": 0.82, "bbox": [128, 72, 384, 216]},
+        {"label": "scratch", "score": 0.55, "box": {"x1": 640, "y1": 360, "x2": 768, "y2": 432}}]}
+    v, warns = adapt_vehicle(raw, W, H)
+    d0, d1 = v["damage"]
+    assert (d0["label"], d0["confidence"]) == ("dent", 0.82)
+    assert d0["box"] == {"x": 10.0, "y": 10.0, "w": 20.0, "h": 20.0}
+    assert (d1["label"], d1["confidence"]) == ("scratch", 0.55)
+    assert d1["box"] == {"x": 50.0, "y": 50.0, "w": 10.0, "h": 10.0}
+    assert warns == []
+
+
+def test_damage_empty_list_means_checked_none_found():
+    v, _ = adapt_vehicle({"bbox": [0, 0, 100, 100], "make": "Kia", "damage": []}, W, H)
+    assert v["damage"] == []
+
+
+def test_damage_bad_box_is_dropped_but_finding_kept():
+    v, warns = adapt_vehicle({"bbox": [0, 0, 100, 100], "make": "Kia",
+                              "damage": [{"class": "dent", "confidence": 0.8, "bbox": [0, 0, 9999, 50]}]}, W, H)
+    assert v["damage"][0]["label"] == "dent" and v["damage"][0]["box"] is None
+    assert any("box ignored" in w for w in warns)
+
+
+def test_damage_bad_confidence_is_warning():
+    v, warns = adapt_vehicle({"bbox": [0, 0, 100, 100], "make": "Kia",
+                              "damage": [{"class": "dent", "confidence": 82, "bbox": [0, 0, 50, 50]}]}, W, H)
+    assert v["damage"][0]["confidence"] is None
+    assert any("confidence_scale" in w for w in warns)
+
+
+def test_damage_severity_is_kept_and_missing_class_is_labelled():
+    v, warns = adapt_vehicle({"bbox": [0, 0, 100, 100], "make": "Kia",
+                              "damage": [{"severity": "minor", "confidence": 0.7, "bbox": [0, 0, 50, 50]}]}, W, H)
+    assert v["damage"][0]["label"] == "Damage" and v["damage"][0]["severity"] == "minor"
+    assert any("no damage type" in w for w in warns)
 
 
 def test_missing_box_is_warning():

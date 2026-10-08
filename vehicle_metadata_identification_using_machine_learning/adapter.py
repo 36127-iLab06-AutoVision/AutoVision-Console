@@ -254,6 +254,53 @@ def _read_list(value, label, warnings):
     return out
 
 
+def _read_damage(value, settings, width, height, warnings):
+    """Damage findings. None -> None (not assessed). [] -> [] (checked, none found).
+    Each finding becomes {label, confidence, box, severity?}. A finding may be plain text
+    ("dent") or an object with a class name, a score and a box (what a detector gives)."""
+    if value is None:
+        return None
+    if isinstance(value, (str, dict)):
+        value = [value] if (not isinstance(value, str) or value.strip()) else []
+    if not isinstance(value, list):
+        warnings.append(f"damage: expected a list, got {type(value).__name__}; ignored")
+        return None
+    findings = []
+    for n, item in enumerate(value, start=1):
+        where = f"damage {n}"
+        if isinstance(item, str):
+            if item.strip():
+                findings.append({"label": item.strip(), "confidence": None, "box": None})
+            continue
+        if not isinstance(item, dict):
+            warnings.append(f"{where}: expected text or an object, skipped")
+            continue
+        label, conf = _read_attribute(item, settings, warnings, where)
+        box_raw = None
+        severity = None
+        for k, v in item.items():
+            nk = normalize_key(k)
+            if nk in BOX_NAMES and box_raw is None:
+                box_raw = v
+            elif nk in ("severity", "level") and v is not None:
+                severity = str(v).strip() or None
+        box = None
+        if box_raw is not None:
+            try:
+                box = _box_to_percent(box_raw, width, height, settings, warnings)
+            except ValueError as e:
+                warnings.append(f"{where}: box ignored ({e})")
+        else:
+            warnings.append(f"{where}: no box, it will be listed but not outlined on the image")
+        if not label:
+            warnings.append(f"{where}: no damage type found, labelled 'Damage'")
+        finding = {"label": label or "Damage", "confidence": conf, "box": box}
+        if severity:
+            finding["severity"] = severity
+        findings.append(finding)
+    return findings
+
+
 def adapt_vehicle(raw, width, height, settings=None):
     """Convert one raw detection into an interface vehicle. Returns (vehicle, warnings)."""
     settings = settings or SETTINGS
@@ -344,7 +391,7 @@ def adapt_vehicle(raw, width, height, settings=None):
         "bodyType": body, "bodyTypeConf": body_c,
         "box": box,
         "features": _read_list(feat_raw, "features", warnings),
-        "damage": _read_list(damage_raw, "damage", warnings),
+        "damage": _read_damage(damage_raw, settings, width, height, warnings),
     }
     extra = {k: v for k, v in raw.items() if k not in used}
     if extra:
@@ -384,7 +431,9 @@ def adapt_file(raw, width, height, settings=None):
     if isinstance(raw, dict):
         skip = {list_key} if list_key else set()
         unused += [k for k in raw if k not in skip and normalize_key(k) not in
-                   {"imagewidth", "imageheight", "width", "height", "image", "filename", "file", "imagename", "imagepath"}]
+                   {"imagewidth", "imageheight", "width", "height", "image", "filename", "file", "imagename", "imagepath",
+                    "camera", "cameraid", "cameraname", "source", "location", "checkpoint",
+                    "time", "timestamp", "capturedat", "capturetime", "datetime", "date"}]
 
     vehicles, seen = [], set()
     for i, item in enumerate(items, start=1):

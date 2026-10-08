@@ -37,6 +37,35 @@ test("damage that is not a list or null is rejected", () => {
   assert.match(errors[0], /vehicles\[0\]\.damage.*null if not assessed/);
 });
 
+test("a vehicle with no box (null) is accepted", () => {
+  const { errors, capture } = validateCapture({ ...goodCapture, vehicles: [{ ...goodVehicle, box: null }] });
+  assert.deepEqual(errors, []);
+  assert.equal(capture.vehicles[0].box, null);
+});
+
+test("damage findings with a class, score and box are accepted", () => {
+  const damage = [{ label: "dent", confidence: 0.82, box: { x: 10, y: 10, w: 20, h: 20 } }, "scratch", { label: "crack", confidence: null, box: null }];
+  const { errors, capture } = validateCapture({ ...goodCapture, vehicles: [{ ...goodVehicle, damage }] });
+  assert.deepEqual(errors, []);
+  assert.deepEqual(capture.vehicles[0].damage, damage);
+});
+
+test("a damage confidence given as a percentage is rejected", () => {
+  const { errors } = validateCapture({ ...goodCapture, vehicles: [{ ...goodVehicle, damage: [{ label: "dent", confidence: 82 }] }] });
+  assert.equal(errors.length, 1);
+  assert.match(errors[0], /vehicles\[0\]\.damage\[0\]\.confidence.*0 to 1/);
+});
+
+test("a damage box outside the image is rejected", () => {
+  const { errors } = validateCapture({ ...goodCapture, vehicles: [{ ...goodVehicle, damage: [{ label: "dent", box: { x: 90, y: 10, w: 30, h: 20 } }] }] });
+  assert.match(errors.join(" "), /damage\[0\]\.box extends outside the image/);
+});
+
+test("a damage finding that is a number is rejected", () => {
+  const { errors } = validateCapture({ ...goodCapture, vehicles: [{ ...goodVehicle, damage: [5] }] });
+  assert.match(errors.join(" "), /damage\[0\] must be text or an object/);
+});
+
 test("an upload-style single capture passes and keeps imageUrl without adding images", () => {
   const upload = {
     id: "upload-1", camera: "Manual upload", time: "10:30", conditions: [],

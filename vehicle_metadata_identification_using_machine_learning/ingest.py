@@ -49,6 +49,38 @@ def declared_size(raw):
     return None
 
 
+CAMERA_KEYS = ("camera", "cameraid", "cameraname", "source", "location", "checkpoint")
+TIME_KEYS = ("time", "timestamp", "capturedat", "capturetime", "datetime", "date")
+
+
+def _first_value(raw, names):
+    if not isinstance(raw, dict):
+        return None
+    flat = {normalize_key(k): v for k, v in raw.items()}
+    for name in names:
+        if name in flat and flat[name] is not None:
+            return flat[name]
+    return None
+
+
+def read_camera(raw):
+    """Camera or checkpoint name written in the file, else None."""
+    value = _first_value(raw, CAMERA_KEYS)
+    if isinstance(value, (str, int)) and not isinstance(value, bool) and str(value).strip():
+        return str(value).strip()
+    return None
+
+
+def read_time(raw):
+    """Capture time written in the file as text or a unix timestamp, else None."""
+    value = _first_value(raw, TIME_KEYS)
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    if isinstance(value, (int, float)) and not isinstance(value, bool) and 1e9 < value < 1e11:
+        return datetime.fromtimestamp(value).strftime("%Y-%m-%d %H:%M")
+    return None
+
+
 def image_size(image_path, raw, warnings):
     declared = declared_size(raw)
     with Image.open(image_path) as img:
@@ -76,8 +108,8 @@ def build_capture(json_path, settings=None):
     warnings += result["warnings"]
     capture = {
         "id": json_path.stem,
-        "camera": "Imported file",
-        "time": datetime.fromtimestamp(json_path.stat().st_mtime).strftime("%Y-%m-%d %H:%M"),
+        "camera": read_camera(raw) or "Imported file",
+        "time": read_time(raw) or datetime.fromtimestamp(json_path.stat().st_mtime).strftime("%Y-%m-%d %H:%M"),
         "conditions": [],
         "images": [{"url": f"/images/{image_path.name}", "confidence": None}],
         "vehicles": result["vehicles"],

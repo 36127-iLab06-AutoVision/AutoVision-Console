@@ -47,6 +47,30 @@ function checkAttributes(item, where, errors) {
       errors.push(`${where}.${key} must be a list, [] if none were found, or null if not assessed`);
     }
   }
+  checkDamage(item.damage, `${where}.damage`, errors);
+}
+
+// A damage finding is plain text, or an object like { label, confidence, box, severity }.
+// Both box and confidence may be null. Seeds may use "part" instead of "label".
+function checkDamage(list, where, errors) {
+  if (!Array.isArray(list)) return;
+  list.forEach((d, i) => {
+    const at = `${where}[${i}]`;
+    if (typeof d === "string") return;
+    if (!isObject(d)) {
+      errors.push(`${at} must be text or an object`);
+      return;
+    }
+    for (const key of ["label", "part", "severity"]) {
+      if (d[key] !== undefined && d[key] !== null && !isText(d[key], 60)) {
+        errors.push(`${at}.${key} must be text up to 60 characters, or null`);
+      }
+    }
+    if (d.confidence !== undefined && d.confidence !== null && !isConfidence(d.confidence)) {
+      errors.push(`${at}.confidence must be a number from 0 to 1 (not a percentage), or null`);
+    }
+    if (d.box !== undefined && d.box !== null) checkBox(d.box, `${at}.box`, errors);
+  });
 }
 
 export function validateCapture(input) {
@@ -99,7 +123,8 @@ export function validateCapture(input) {
         else if (seen.has(v.id)) errors.push(`${where}.id ${v.id} is used twice in this capture`);
         else seen.add(v.id);
         checkAttributes(v, where, errors);
-        if (v.box !== undefined) checkBox(v.box, `${where}.box`, errors);
+        // box may be null when the model gave no location for this vehicle
+        if (v.box !== undefined && v.box !== null) checkBox(v.box, `${where}.box`, errors);
       });
     }
   } else {

@@ -54,10 +54,43 @@
 }
 
 /* Phone */
+/* The header and breadcrumb strip stay at the top while the content scrolls. */
+.app-top {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+}
+/* On phones and short screens nothing is hidden. The header keeps every part and just uses
+   smaller text and tighter padding. !important is needed to beat the inline sizes. */
+@media (max-width: 600px), (max-height: 650px) {
+  .hdr-strip {
+    padding: 3px 14px !important;
+    font-size: 10px !important;
+  }
+  .hdr-main {
+    padding: 8px 14px !important;
+  }
+  .hdr-title {
+    font-size: 19px !important;
+  }
+  .hdr-sub {
+    font-size: 12px !important;
+    margin-top: 0 !important;
+  }
+  .app-crumbs {
+    padding: 5px 14px !important;
+    font-size: 11px !important;
+  }
+}
+
 /* Navigation rail: a slim bar down the left on large screens... */
 .icon-rail {
   width: 68px;
   flex-shrink: 0;
+  position: sticky;   /* stays put while the page scrolls */
+  top: 0;
+  height: 100vh;
+  align-self: flex-start;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -81,6 +114,7 @@
 @media (max-width: 600px) {
   .icon-rail {
     position: fixed;
+    top: auto;
     left: 0;
     right: 0;
     bottom: 0;

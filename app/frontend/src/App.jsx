@@ -111,7 +111,7 @@ function App() {
   const vehicle = vehicles.find((v) => v.id === selectedVehicleId) || vehicles[0];
 
   // Multi-vehicle images: selected vehicle's box is blue, the others grey.
-  const boxes = isMulti
+  const vehicleBoxes = isMulti
     ? capture.vehicles
         .filter((v) => v.box)
         .map((v) => ({
@@ -120,6 +120,20 @@ function App() {
           ...v.box,
         }))
     : capture.boxes || [];
+
+  // Damage findings that came with a location are outlined in red, for the selected vehicle only.
+  const damageBoxes =
+    isMulti && Array.isArray(vehicle.damage)
+      ? vehicle.damage
+          .map((d, i) =>
+            d && typeof d === "object" && d.box
+              ? { label: `Damage ${i + 1} (${d.label || d.part || "damage"})`, color: "#E1261C", ...d.box }
+              : null
+          )
+          .filter(Boolean)
+      : [];
+
+  const boxes = [...vehicleBoxes, ...damageBoxes];
 
   // null means "not assessed", [] means "checked, none found". Keep them apart.
   const features = vehicle.features ?? null;
@@ -215,9 +229,10 @@ function App() {
       <IconRail activeView={activeView} onNavigate={setActiveView} />
 
       <div className="app-main" style={{ flex: 1, minWidth: 0 }}>
+        <div className="app-top">
         <Header />
 
-        <div style={{ background: colors.white, borderBottom: `1px solid ${colors.grey03}`, padding: "10px 20px", fontSize: "12px", color: colors.grey02 }}>
+        <div className="app-crumbs" style={{ background: colors.white, borderBottom: `1px solid ${colors.grey03}`, padding: "10px 20px", fontSize: "12px", color: colors.grey02 }}>
           Home <span style={{ color: colors.grey03, margin: "0 6px" }}>/</span>
           Vehicle Identification Unit <span style={{ color: colors.grey03, margin: "0 6px" }}>/</span>
           <span style={{ color: colors.navy, fontWeight: 600 }}>
@@ -227,6 +242,7 @@ function App() {
             {activeView === "history" && "Search & export"}
             {activeView === "settings" && "Settings"}
           </span>
+        </div>
         </div>
 
         {activeView === "queue" && (
