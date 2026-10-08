@@ -193,3 +193,5 @@ cython_debug/
 # Node
 node_modules/
 dist/
+data/app.db*
+data/uploads/
