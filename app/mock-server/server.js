@@ -10,7 +10,8 @@ const dbFile = process.env.DB_FILE || path.join(DATA_DIR, "app.db");
 
 const { app, store } = createApp({
   dbFile,
-  processedDir: path.join(DATA_DIR, "processed"),
+  // Where captures.json and its images are read from. Published version: the committed demo-data folder.
+  processedDir: process.env.PROCESSED_DIR || path.join(DATA_DIR, "processed"),
   uploadsDir: process.env.UPLOADS_DIR || path.join(DATA_DIR, "uploads"),
   corsOrigin: process.env.CORS_ORIGIN, // when published: the web address of the interface
 });

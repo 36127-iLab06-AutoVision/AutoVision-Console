@@ -1,0 +1,44 @@
+{
+  "settings": {
+    "box_format": "xyxy",
+    "box_units": "auto",
+    "confidence_scale": "fraction"
+  },
+  "files": [
+    {
+      "file": "img_001.json",
+      "status": "ok",
+      "vehicles": 2,
+      "warnings": [],
+      "unused_fields": []
+    },
+    {
+      "file": "img_002.json",
+      "status": "ok",
+      "vehicles": 1,
+      "warnings": [],
+      "unused_fields": []
+    },
+    {
+      "file": "img_003.json",
+      "status": "ok",
+      "vehicles": 1,
+      "warnings": [],
+      "unused_fields": []
+    },
+    {
+      "file": "img_004.json",
+      "status": "ok",
+      "vehicles": 0,
+      "warnings": [],
+      "unused_fields": []
+    },
+    {
+      "file": "img_005.json",
+      "status": "ok",
+      "vehicles": 2,
+      "warnings": [],
+      "unused_fields": []
+    }
+  ]
+}

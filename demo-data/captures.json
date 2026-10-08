@@ -1,0 +1,206 @@
+[
+  {
+    "id": "img_001",
+    "camera": "Toll Gantry 4B",
+    "time": "2026-10-06 22:42",
+    "conditions": [],
+    "images": [
+      {
+        "url": "/images/img_001.jpg",
+        "confidence": null
+      }
+    ],
+    "vehicles": [
+      {
+        "id": 1,
+        "make": "Toyota",
+        "model": "Camry",
+        "makeConf": 0.91,
+        "modelConf": 0.91,
+        "color": null,
+        "colorConf": null,
+        "bodyType": null,
+        "bodyTypeConf": null,
+        "box": {
+          "x": 9.38,
+          "y": 11.11,
+          "w": 40.62,
+          "h": 54.17
+        },
+        "features": null,
+        "damage": null
+      },
+      {
+        "id": 2,
+        "make": "BMW",
+        "model": "X5",
+        "makeConf": 0.87,
+        "modelConf": 0.87,
+        "color": null,
+        "colorConf": null,
+        "bodyType": null,
+        "bodyTypeConf": null,
+        "box": {
+          "x": 55.47,
+          "y": 13.89,
+          "w": 30.47,
+          "h": 45.83
+        },
+        "features": null,
+        "damage": null
+      }
+    ]
+  },
+  {
+    "id": "img_002",
+    "camera": "Checkpoint North",
+    "time": "2026-10-06 22:42",
+    "conditions": [],
+    "images": [
+      {
+        "url": "/images/img_002.jpg",
+        "confidence": null
+      }
+    ],
+    "vehicles": [
+      {
+        "id": 1,
+        "make": "Ford",
+        "model": "Ranger",
+        "makeConf": 0.96,
+        "modelConf": 0.96,
+        "color": null,
+        "colorConf": null,
+        "bodyType": null,
+        "bodyTypeConf": null,
+        "box": {
+          "x": 23.44,
+          "y": 20.83,
+          "w": 53.12,
+          "h": 62.5
+        },
+        "features": null,
+        "damage": null
+      }
+    ]
+  },
+  {
+    "id": "img_003",
+    "camera": "Carpark Cam 2",
+    "time": "2026-10-06 22:42",
+    "conditions": [],
+    "images": [
+      {
+        "url": "/images/img_003.jpg",
+        "confidence": null
+      }
+    ],
+    "vehicles": [
+      {
+        "id": 1,
+        "make": "Mazda",
+        "model": "CX-5",
+        "makeConf": 0.62,
+        "modelConf": 0.62,
+        "color": null,
+        "colorConf": null,
+        "bodyType": null,
+        "bodyTypeConf": null,
+        "box": {
+          "x": 15.62,
+          "y": 27.78,
+          "w": 39.06,
+          "h": 50.0
+        },
+        "features": null,
+        "damage": null
+      }
+    ]
+  },
+  {
+    "id": "img_004",
+    "camera": "Toll Gantry 4B",
+    "time": "2026-10-06 22:42",
+    "conditions": [],
+    "images": [
+      {
+        "url": "/images/img_004.jpg",
+        "confidence": null
+      }
+    ],
+    "vehicles": []
+  },
+  {
+    "id": "img_005",
+    "camera": "Imported file",
+    "time": "2026-10-08 12:57",
+    "conditions": [],
+    "images": [
+      {
+        "url": "/images/img_005.jpg",
+        "confidence": null
+      }
+    ],
+    "vehicles": [
+      {
+        "id": 1,
+        "make": "Toyota",
+        "model": "Camry",
+        "makeConf": 0.91,
+        "modelConf": 0.91,
+        "color": "White",
+        "colorConf": 0.8,
+        "bodyType": "Sedan",
+        "bodyTypeConf": 0.88,
+        "box": {
+          "x": 9.38,
+          "y": 11.11,
+          "w": 40.62,
+          "h": 54.17
+        },
+        "features": null,
+        "damage": [
+          {
+            "label": "dent",
+            "confidence": 0.82,
+            "box": {
+              "x": 15.62,
+              "y": 41.67,
+              "w": 9.38,
+              "h": 11.11
+            }
+          },
+          {
+            "label": "scratch",
+            "confidence": 0.55,
+            "box": {
+              "x": 31.25,
+              "y": 48.61,
+              "w": 9.38,
+              "h": 9.72
+            }
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "make": "BMW",
+        "model": "X5",
+        "makeConf": 0.87,
+        "modelConf": 0.87,
+        "color": null,
+        "colorConf": null,
+        "bodyType": null,
+        "bodyTypeConf": null,
+        "box": {
+          "x": 55.47,
+          "y": 13.89,
+          "w": 30.47,
+          "h": 45.83
+        },
+        "features": null,
+        "damage": []
+      }
+    ]
+  }
+]
