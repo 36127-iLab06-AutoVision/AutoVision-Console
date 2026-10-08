@@ -24,8 +24,8 @@ function workspace() {
 }
 
 // Starts the API on a free port. Call stop() to simulate shutting the server down.
-async function start(ws) {
-  const { app, store } = createApp({ dbFile: ws.dbFile, processedDir: ws.processedDir, uploadsDir: ws.uploadsDir, log: quiet });
+async function start(ws, extra = {}) {
+  const { app, store } = createApp({ dbFile: ws.dbFile, processedDir: ws.processedDir, uploadsDir: ws.uploadsDir, log: quiet, ...extra });
   const server = await new Promise((resolve) => {
     const s = app.listen(0, () => resolve(s));
   });
@@ -195,4 +195,71 @@ test("a broken captures.json does not stop the server", async () => {
   const s = await start(ws);
   assert.equal((await s.call("GET", "/api/captures")).data.length, 3);
   await s.stop();
+});
+
+// A pretend detection service: answers like the real one, without any model.
+const fakeDetector = (reply, status = 200) => async () => ({
+  ok: status >= 200 && status < 300,
+  status,
+  json: async () => reply,
+});
+
+test("Run detection says so plainly when no model is connected", async () => {
+  const s = await start(workspace());
+  assert.equal((await s.call("GET", "/api/detect/status")).data.available, false);
+  const r = await s.call("POST", "/api/detect", { imageUrl: TINY_PNG });
+  assert.equal(r.status, 503);
+  assert.match(r.data.error, /No detection model/);
+  assert.equal((await s.call("GET", "/api/captures")).data.length, 3);
+  await s.stop();
+});
+
+test("Run detection saves what the detection service finds as a new capture", async () => {
+  const ws = workspace();
+  const reply = { vehicles: [vehicle(1, "Toyota"), vehicle(2, "BMW")], warnings: ["vehicle 2: colour missing"] };
+  const s = await start(ws, { analyzeUrl: "http://detector.test", fetchFn: fakeDetector(reply) });
+  assert.equal((await s.call("GET", "/api/detect/status")).data.available, true);
+  const r = await s.call("POST", "/api/detect", { imageUrl: TINY_PNG });
+  assert.equal(r.status, 201);
+  assert.equal(r.data.capture.vehicles.length, 2);
+  assert.deepEqual(r.data.warnings, ["vehicle 2: colour missing"]);
+  const list = (await s.call("GET", "/api/captures")).data;
+  assert.equal(list[0].id, r.data.capture.id);
+  const img = await fetch(s.url + r.data.capture.images[0].url);
+  assert.equal(img.status, 200);
+  await s.stop();
+});
+
+test("Run detection keeps an image that has no vehicles", async () => {
+  const s = await start(workspace(), { analyzeUrl: "http://detector.test", fetchFn: fakeDetector({ vehicles: [] }) });
+  const r = await s.call("POST", "/api/detect", { imageUrl: TINY_PNG });
+  assert.equal(r.status, 201);
+  assert.deepEqual(r.data.capture.vehicles, []);
+  await s.stop();
+});
+
+test("Run detection refuses bad images and bad answers, and leaves nothing behind", async () => {
+  const ws = workspace();
+  const notImage = "data:image/png;base64,AAAA";
+  let s = await start(ws, { analyzeUrl: "http://detector.test", fetchFn: fakeDetector({ vehicles: [] }) });
+  assert.equal((await s.call("POST", "/api/detect", { imageUrl: notImage })).status, 400);
+  assert.equal((await s.call("POST", "/api/detect", {})).status, 400);
+  await s.stop();
+
+  const cases = [
+    [fakeDetector({ detail: "model crashed" }, 500), 502, /model crashed/],
+    [fakeDetector({ nothing: true }), 502, /no vehicles list/],
+    [fakeDetector({ vehicles: [{ id: 1, makeConf: 7 }] }), 502, /could not accept/],
+    [async () => { throw new Error("connect ECONNREFUSED"); }, 504, /could not be reached/],
+  ];
+  for (const [fetchFn, status, message] of cases) {
+    s = await start(ws, { analyzeUrl: "http://detector.test", fetchFn });
+    const r = await s.call("POST", "/api/detect", { imageUrl: TINY_PNG });
+    assert.equal(r.status, status);
+    assert.match(r.data.error, message);
+    assert.equal((await s.call("GET", "/api/captures")).data.length, 3);
+    await s.stop();
+  }
+  const left = fs.existsSync(ws.uploadsDir) ? fs.readdirSync(ws.uploadsDir) : [];
+  assert.deepEqual(left, []);
 });

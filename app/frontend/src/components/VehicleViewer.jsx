@@ -60,6 +60,9 @@ function VehicleViewer({ images, boxes, highlightLabel, showBoxes }) {
           boxList.map((box, i) => {
             const isHighlighted = highlightLabel === box.label;
             const isDimmed = highlightLabel && !isHighlighted;
+            // The name sits on a solid chip so it can be read on any photo. It goes just above
+            // the box, or inside the top edge when the box is too close to the top of the picture.
+            const chipAbove = box.y >= 7;
             return (
               <div
                 key={i}
@@ -69,10 +72,33 @@ function VehicleViewer({ images, boxes, highlightLabel, showBoxes }) {
                   border: `${isHighlighted ? 4 : 2}px solid ${box.color}`,
                   opacity: isDimmed ? 0.3 : 1,
                   boxShadow: isHighlighted ? `0 0 12px ${box.color}` : "none",
+                  zIndex: isHighlighted ? 2 : 1,
                   transition: "border-width 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease",
                 }}
               >
-                <span style={{ color: box.color, fontSize: "11px" }}>{box.label}</span>
+                {box.label && (
+                  <span
+                    style={{
+                      position: "absolute",
+                      left: "-2px",
+                      ...(chipAbove ? { bottom: "100%" } : { top: 0 }),
+                      maxWidth: "100%",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      background: box.color,
+                      color: "white",
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      lineHeight: 1.3,
+                      padding: "1px 6px",
+                      borderRadius: chipAbove ? "3px 3px 0 0" : "0 0 3px 0",
+                      pointerEvents: "none",
+                    }}
+                  >
+                    {box.label}
+                  </span>
+                )}
               </div>
             );
           })}

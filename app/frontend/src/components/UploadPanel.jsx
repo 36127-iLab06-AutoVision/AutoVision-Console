@@ -1,80 +1,75 @@
 import { useState, useRef, useEffect } from "react";
 import Loader from "./Loader.jsx";
 
-function UploadPanel({ onNewCapture }) {
+// The server accepts a request body of up to 10 MB, and a picture grows by about a third when
+// it is sent as text, so anything over about 7 MB would be refused.
+const MAX_IMAGE_BYTES = 7 * 1024 * 1024;
+
+function UploadPanel({ onDetect, detectAvailable }) {
   const [file, setFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [error, setError] = useState(null);
+  const [notes, setNotes] = useState([]);
   const inputRef = useRef(null);
 
   function handleFileChange(e) {
-  const selected = e.target.files[0];
-  if (!selected) return;
-  setFile(selected);
+    const selected = e.target.files[0];
+    if (!selected) return;
+    setError(null);
+    setNotes([]);
 
-  // FileReader converts the actual image bytes into a base64 text string —
-  // unlike a blob URL, this text is genuinely portable: it can be sent over
-  // the network and stored, and it'll still work after a refresh.
-  const reader = new FileReader();
-  reader.onload = () => setPreviewUrl(reader.result);
-  reader.readAsDataURL(selected);
+    if (selected.type !== "image/jpeg" && selected.type !== "image/png") {
+      setError("Please choose a JPG or PNG image.");
+      e.target.value = "";
+      return;
+    }
+    if (selected.size > MAX_IMAGE_BYTES) {
+      setError("That image is larger than 7 MB. Please choose a smaller one.");
+      e.target.value = "";
+      return;
+    }
+    setFile(selected);
+
+    // FileReader turns the image bytes into base64 text, which can be sent to the server.
+    const reader = new FileReader();
+    reader.onload = () => setPreviewUrl(reader.result);
+    reader.readAsDataURL(selected);
   }
 
-  function handleAnalyze() {
-    if (!file) return;
+  async function handleAnalyze() {
+    if (!file || !previewUrl || processing) return;
+    setError(null);
+    setNotes([]);
     setProgress(0);
     setProcessing(true);
+    try {
+      const warnings = await onDetect(previewUrl);
+      setProgress(100);
+      setNotes(warnings);
+      setFile(null);
+      setPreviewUrl(null);
+      if (inputRef.current) inputRef.current.value = "";
+    } catch (err) {
+      // Keep the image so the person can simply try again.
+      setError(err.fromServer ? err.message : "Could not reach the server. Check that it is running, then try again.");
+    } finally {
+      setProcessing(false);
+    }
   }
 
-  // This runs automatically whenever "processing" changes value.
+  // The model gives no progress updates, so the bar creeps towards 90% while we wait.
   useEffect(() => {
     if (!processing) return;
-
     const interval = setInterval(() => {
-      setProgress((p) => {
-        if (p >= 100) {
-          clearInterval(interval);
-          return 100;
-        }
-        return p + 2;
-      });
-    }, 40);
-
-    // Cleanup function: React calls this if the component disappears
-    // or "processing" changes again before the interval finishes,
-    // so we never leave a ticking timer running in the background by accident.
+      setProgress((p) => p + (90 - p) * 0.04);
+    }, 100);
     return () => clearInterval(interval);
   }, [processing]);
 
-  // Separate effect: once progress actually reaches 100, finish up.
-  useEffect(() => {
-    if (progress < 100 || !processing) return;
-
-    const newCapture = {
-      id: `upload-${Date.now()}`,
-      camera: "Manual upload",
-      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      conditions: [],  
-      make: "Toyota",
-      model: "Corolla",
-      color: "White",
-      bodyType: "Hatchback",
-      makeConf: 0.88,
-      modelConf: 0.71,
-      colorConf: 0.95,
-      bodyTypeConf: 0.83,
-      imageUrl: previewUrl,
-      boxes: [{ label: "Vehicle", color: "#146CFD", x: 15, y: 20, w: 65, h: 50 }],
-      damage: [],
-    };
-
-    onNewCapture(newCapture);
-    setProcessing(false);
-    setFile(null);
-    setPreviewUrl(null);
-    if (inputRef.current) inputRef.current.value = "";
-  }, [progress, processing]);
+  const noModel = detectAvailable === false;
+  const isDemo = notes.some((n) => n.startsWith("DEMO MODE"));
 
   return (
     <>
@@ -83,7 +78,7 @@ function UploadPanel({ onNewCapture }) {
           <input
             ref={inputRef}
             type="file"
-            accept="image/*"
+            accept="image/jpeg,image/png"
             onChange={handleFileChange}
             style={{ display: "none" }}
           />
@@ -104,11 +99,40 @@ function UploadPanel({ onNewCapture }) {
         <button
           className="btn-primary"
           onClick={handleAnalyze}
-          disabled={!file || processing}
+          disabled={!file || !previewUrl || processing || noModel}
           style={{ width: "100%", marginTop: "10px" }}
         >
           {processing ? "Analysing..." : "Run detection"}
         </button>
+
+        {noModel && (
+          <div style={{ fontSize: "12px", color: "#495054", marginTop: "8px" }}>
+            No detection model is connected to this server yet, so images cannot be analysed here.
+          </div>
+        )}
+
+        {error && (
+          <div role="alert" style={{ fontSize: "12px", color: "#E1261C", marginTop: "8px" }}>
+            {error}
+          </div>
+        )}
+
+        {notes.length > 0 && (
+          <div
+            style={{
+              fontSize: "12px",
+              marginTop: "8px",
+              padding: "8px 10px",
+              borderRadius: "6px",
+              background: isDemo ? "#FFF4D6" : "#EEF2F6",
+              color: "#22272B",
+            }}
+          >
+            {notes.map((n, i) => (
+              <div key={i} style={{ fontWeight: n.startsWith("DEMO MODE") ? 700 : 400 }}>{n}</div>
+            ))}
+          </div>
+        )}
       </div>
 
       {processing && (
@@ -127,7 +151,7 @@ function UploadPanel({ onNewCapture }) {
             zIndex: 1000,
           }}
         >
-          <Loader percent={progress} />
+          <Loader percent={Math.round(progress)} />
           <div style={{ color: "white", marginTop: "16px", fontSize: "14px" }}>
             Running vehicle detection model...
           </div>

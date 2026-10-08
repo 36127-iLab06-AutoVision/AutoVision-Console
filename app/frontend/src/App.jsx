@@ -64,6 +64,8 @@ function App() {
   const [serverError, setServerError] = useState(false);
   const [activeView, setActiveView] = useState("queue");
   const [searchQuery, setSearchQuery] = useState("");
+  // Is a detection model connected to the server? null while we are still asking.
+  const [detectAvailable, setDetectAvailable] = useState(null);
 
   useEffect(() => {
     request("/api/captures")
@@ -77,6 +79,10 @@ function App() {
     request("/api/audit")
       .then((data) => setAuditLog(data))
       .catch(() => setServerError(true));
+
+    request("/api/detect/status")
+      .then((data) => setDetectAvailable(Boolean(data.available)))
+      .catch(() => setDetectAvailable(false));
   }, []);
 
   useEffect(() => {
@@ -183,18 +189,18 @@ function App() {
       .catch(handleRequestError);
   }
 
-  function handleNewCapture(newCapture) {
-    request("/api/captures", {
+  // "Run detection": the server sends the image to the detection model and saves the result.
+  // Resolves with the model's warnings. Rejects with the server's message if anything fails.
+  async function handleDetect(imageDataUrl) {
+    const result = await request("/api/detect", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(newCapture),
-    })
-      .then((saved) => {
-        setCaptures([saved, ...captures]);
-        setSelectedId(saved.id);
-        setSelectedVehicleId(null);
-      })
-      .catch(handleRequestError);
+      body: JSON.stringify({ imageUrl: imageDataUrl }),
+    });
+    setCaptures((previous) => [result.capture, ...previous]);
+    setSelectedId(result.capture.id);
+    setSelectedVehicleId(null);
+    return result.warnings || [];
   }
 
   function handleSelectCapture(id) {
@@ -272,7 +278,7 @@ function App() {
 
             <div className="layout">
               <div className="sidebar card" style={{ background: colors.white, padding: "16px" }}>
-                <UploadPanel onNewCapture={handleNewCapture} />
+                <UploadPanel onDetect={handleDetect} detectAvailable={detectAvailable} />
                 <QueueList captures={captures} selectedId={selectedId} onSelect={handleSelectCapture} threshold={threshold} />
               </div>
 

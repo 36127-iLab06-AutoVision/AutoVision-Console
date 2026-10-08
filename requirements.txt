@@ -7,3 +7,6 @@ tqdm
 typer
 pillow
 -e .
+fastapi
+uvicorn
+httpx

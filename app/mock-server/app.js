@@ -63,7 +63,33 @@ function saveUploadedImage(dataUrl, uploadsDir) {
   return { url: `/uploads/${name}` };
 }
 
-export function createApp({ dbFile, processedDir, uploadsDir, corsOrigin, log = console }) {
+// Asks the detection service (the ML team's model wrapped in a small web service) to analyse
+// one image. Returns { vehicles, warnings } or { status, error }.
+async function askDetector(analyzeUrl, dataUrl, timeoutMs, fetchFn) {
+  let res;
+  try {
+    res = await fetchFn(`${analyzeUrl.replace(/\/+$/, "")}/analyze`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ image: dataUrl }),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+  } catch (e) {
+    const timedOut = e && (e.name === "TimeoutError" || e.name === "AbortError");
+    return { status: 504, error: timedOut ? "The detection service took too long to answer" : "The detection service could not be reached" };
+  }
+  const body = await res.json().catch(() => null);
+  if (!res.ok) {
+    const detail = body && (body.detail || body.error);
+    return { status: 502, error: `The detection service failed${typeof detail === "string" ? `: ${detail}` : ""}` };
+  }
+  if (!body || !Array.isArray(body.vehicles)) {
+    return { status: 502, error: "The detection service sent a reply the console cannot read (no vehicles list)" };
+  }
+  return { vehicles: body.vehicles, warnings: Array.isArray(body.warnings) ? body.warnings : [] };
+}
+
+export function createApp({ dbFile, processedDir, uploadsDir, corsOrigin, analyzeUrl, analyzeTimeoutMs = 120000, fetchFn = fetch, log = console }) {
   const store = openStore(dbFile);
   store.seedIfMissing(seedCaptures);
   store.syncIngested(loadIngested(processedDir, log));
@@ -149,6 +175,48 @@ export function createApp({ dbFile, processedDir, uploadsDir, corsOrigin, log = 
     }
     store.insertCapture(capture, "upload");
     res.status(201).json(capture);
+  });
+
+  // Does the console have a detection model to talk to? The button uses this to say so honestly.
+  app.get("/api/detect/status", (req, res) => {
+    res.json({ available: Boolean(analyzeUrl) });
+  });
+
+  // "Run detection": send the image to the detection service, check what comes back with the same
+  // rules as any other capture, and save it as a new capture.
+  app.post("/api/detect", async (req, res) => {
+    if (!analyzeUrl) {
+      return res.status(503).json({ error: "No detection model is connected to this server yet" });
+    }
+    const dataUrl = req.body && req.body.imageUrl;
+    if (typeof dataUrl !== "string" || !dataUrl.startsWith("data:")) {
+      return res.status(400).json({ error: "Invalid request", errors: ["imageUrl must be an uploaded image"] });
+    }
+    // Check the image first so a bad file never reaches the model.
+    const saved = saveUploadedImage(dataUrl, uploadsDir);
+    if (saved.error) {
+      return res.status(400).json({ error: "Invalid request", errors: [saved.error] });
+    }
+    const found = await askDetector(analyzeUrl, dataUrl, analyzeTimeoutMs, fetchFn);
+    if (found.error) {
+      fs.rmSync(path.join(uploadsDir, path.basename(saved.url)), { force: true });
+      return res.status(found.status).json({ error: found.error });
+    }
+    const candidate = {
+      id: `upload-${crypto.randomUUID().slice(0, 8)}`,
+      camera: "Uploaded image",
+      time: new Date().toISOString().slice(0, 16).replace("T", " "),
+      conditions: [],
+      images: [{ url: saved.url, confidence: null }],
+      vehicles: found.vehicles,
+    };
+    const { errors, capture } = validateCapture(candidate);
+    if (errors.length > 0) {
+      fs.rmSync(path.join(uploadsDir, path.basename(saved.url)), { force: true });
+      return res.status(502).json({ error: "The detection service sent results the console could not accept", errors });
+    }
+    store.insertCapture(capture, "upload");
+    res.status(201).json({ capture, warnings: found.warnings });
   });
 
   // Turns body-parsing problems into JSON instead of an HTML error page.
