@@ -28,25 +28,14 @@ from PIL import Image
 from pydantic import BaseModel
 
 from .adapter import SETTINGS, adapt_file
+from .modeling.inference import predict_image
 
 MAX_IMAGE_BYTES = 8 * 1024 * 1024
 
 
 def run_model(image):
-    """THE ONE FUNCTION THE ML TEAM FILLS IN.
-
-    image: a Pillow image (RGB).
-    Return the model's output in whatever JSON layout the team already uses, for example
-        {"vehicles": [{"vehicle_id": 1, "bounding_box": [120, 80, 640, 470],
-                       "make_model": "Toyota Camry", "confidence": 0.91, ...}]}
-    The adapter converts it, so no reshaping is needed. Box layout, units and confidence
-    scale are set in SETTINGS in adapter.py.
-
-    Load the models ONCE at the top of this file (not inside this function) so each click
-    is fast.
-    """
-    raise NotImplementedError("No model is connected yet. Edit run_model() in service.py.")
-
+    """Run the AutoVision ML pipeline."""
+    return predict_image(image)
 
 def demo_model(image):
     """Made-up output so the button can be tried end to end. Not a real detection."""
