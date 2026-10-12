@@ -32,6 +32,34 @@ from .adapter import SETTINGS, adapt_file
 MAX_IMAGE_BYTES = 8 * 1024 * 1024
 
 
+def tidy_label(text):
+    """The team's body type and colour labels come out lower case ("white", "hatchback").
+    Capitalise those for display. Labels that already have capitals, such as MPV, are kept."""
+    if isinstance(text, str) and text and text == text.lower():
+        return " ".join(word.capitalize() for word in text.split())
+    return text
+
+
+def tidy_team_output(raw):
+    """Small clean-ups on the team pipeline's output. It never changes what was predicted.
+
+    - model labels that repeat the make ("Toyota Hilux" under make "Toyota") lose the repeat
+    - body type and colour labels are capitalised
+    """
+    if not isinstance(raw, dict):
+        return raw
+    for vehicle in raw.get("vehicles", []):
+        make, model = vehicle.get("make"), vehicle.get("model")
+        if isinstance(make, str) and isinstance(model, str):
+            if model.lower().startswith(make.lower() + " "):
+                vehicle["model"] = model[len(make):].strip()
+        for key in ("body_type", "colour"):
+            value = vehicle.get(key)
+            if isinstance(value, dict) and "label" in value:
+                value["label"] = tidy_label(value["label"])
+    return raw
+
+
 def run_model(image):
     """Runs the real models (detector, make/model, body type, colour, damage).
 
@@ -48,7 +76,7 @@ def run_model(image):
             from . import models
             return models.predict(image)
         from .modeling.inference import predict_image
-        return predict_image(image)
+        return tidy_team_output(predict_image(image))
     except (ImportError, FileNotFoundError) as e:
         raise NotImplementedError(
             f"The models could not be loaded ({e}). Install requirements-models.txt and put the "
