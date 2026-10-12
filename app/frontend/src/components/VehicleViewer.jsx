@@ -62,7 +62,10 @@ function VehicleViewer({ images, boxes, highlightLabel, showBoxes }) {
             const isDimmed = highlightLabel && !isHighlighted;
             // The name sits on a solid chip so it can be read on any photo. It goes just above
             // the box, or inside the top edge when the box is too close to the top of the picture.
-            const chipAbove = box.y >= 7;
+            // Damage boxes put a short tag ("D1") inside their top corner, so neighbouring tags
+            // never pile up above each other. The full name stays in the legend.
+            const chipAbove = box.y >= 7 && !box.chipInside;
+            const chipText = box.shortLabel || box.label;
             return (
               <div
                 key={i}
@@ -76,7 +79,7 @@ function VehicleViewer({ images, boxes, highlightLabel, showBoxes }) {
                   transition: "border-width 0.15s ease, opacity 0.15s ease, box-shadow 0.15s ease",
                 }}
               >
-                {box.label && (
+                {chipText && (
                   <span
                     style={{
                       position: "absolute",
@@ -96,7 +99,7 @@ function VehicleViewer({ images, boxes, highlightLabel, showBoxes }) {
                       pointerEvents: "none",
                     }}
                   >
-                    {box.label}
+                    {chipText}
                   </span>
                 )}
               </div>
