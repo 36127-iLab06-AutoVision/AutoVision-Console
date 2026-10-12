@@ -7,7 +7,7 @@ function Header() {
     <div>
       <div className="hdr-strip" style={{ background: colors.navyDark, color: colors.white, fontSize: "11px", padding: "4px 20px", display: "flex", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
         <span>Student Research Prototype</span>
-        <span style={{ color: colors.grey03 }}>UTS 36127 iLab Project 06 - Not for Operational Use</span>
+        <span style={{ color: colors.grey03 }}>UTS 36127 iLab Project 06 - AutoVision</span>
       </div>
 
       <div className="hdr-main" style={{ background: colors.navy, color: colors.white, padding: "16px 20px" }}>

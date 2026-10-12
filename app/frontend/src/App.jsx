@@ -38,15 +38,39 @@ async function request(path, options) {
   return data;
 }
 
+// Choices in the correction box. The make list is built from the keys below, so there is one
+// list to keep up to date. A value the model gives that is not listed here (for example "Opel")
+// is still shown at the top of the box, so nothing is lost.
 const modelsByMake = {
-  Toyota: ["Camry", "Corolla", "RAV4", "Hilux"],
-  Ford: ["Ranger", "Falcon", "Focus"],
-  Mazda: ["CX-5", "Mazda3", "BT-50"],
-  Holden: ["Commodore", "Colorado"],
-  Subaru: ["Outback", "Forester", "Impreza"],
-  Nissan: ["Navara", "X-Trail"],
-  BMW: ["3 Series", "X5"],
+  Audi: ["A3", "A4", "Q5"],
+  BMW: ["3 Series", "5 Series", "X3", "X5"],
+  Ford: ["Ranger", "Falcon", "Focus", "Fiesta", "Territory", "Everest", "Mustang", "Escape"],
+  Holden: ["Commodore", "Colorado", "Astra", "Cruze", "Barina", "Captiva", "Trax", "Caprice"],
+  Honda: ["Civic", "Accord", "CR-V", "Jazz", "HR-V"],
+  Hyundai: ["i30", "Elantra", "Tucson", "Santa Fe", "Kona", "Accent", "Veracruz", "Grandeur"],
+  Isuzu: ["D-Max", "MU-X"],
+  Kia: ["Cerato", "Sportage", "Sorento", "Rio", "Carnival", "Picanto"],
+  Lexus: ["ES", "IS", "NX", "RX"],
+  Mazda: ["Mazda2", "Mazda3", "Mazda6", "CX-3", "CX-5", "CX-9", "BT-50"],
+  "Mercedes-Benz": ["C-Class", "E-Class", "GLC"],
+  MG: ["MG3", "MG5", "ZS"],
+  Mitsubishi: ["Lancer", "Outlander", "Triton", "Pajero", "ASX"],
+  Nissan: ["Navara", "X-Trail", "Pathfinder", "Qashqai", "Patrol", "Pulsar"],
+  Subaru: ["Impreza", "Forester", "Outback", "WRX", "XV"],
+  Suzuki: ["Swift", "Vitara", "Jimny"],
+  Toyota: ["Corolla", "Camry", "RAV4", "Yaris", "Kluger", "Hilux", "Land Cruiser", "Prado"],
+  Volkswagen: ["Golf", "Polo", "Passat", "Tiguan", "Amarok"],
 };
+
+const MAKE_OPTIONS = Object.keys(modelsByMake);
+
+// Colour and body type use the same names as the ML team's classes, so a correction reads the
+// same as a prediction.
+const COLOUR_OPTIONS = ["Black", "Blue", "Brown", "Champagne", "Green", "Purple", "Red", "Silver", "White", "Yellow"];
+const BODY_TYPE_OPTIONS = [
+  "MPV", "SUV", "Convertible", "Crossover", "Estate", "Fastback",
+  "Hardtop Convertible", "Hatchback", "Minibus", "Pickup", "Sedan", "Sports",
+];
 
 const PLACEHOLDER_FIELDS = ["Day / Night", "Camera / Checkpoint Identifier", "GPS Location", "Model Version", "Vehicle Year / Trim"];
 
@@ -156,7 +180,7 @@ function App() {
       ? vehicle.damage
           .map((d, i) =>
             d && typeof d === "object" && d.box
-              ? { label: `Damage ${i + 1} (${d.label || d.part || "damage"})`, color: "#E1261C", ...d.box }
+              ? { label: `Damage ${i + 1} (${d.label || d.part || "damage"})`, shortLabel: `D${i + 1}`, chipInside: true, color: "#E1261C", ...d.box }
               : null
           )
           .filter(Boolean)
@@ -266,9 +290,9 @@ function App() {
           Vehicle Identification Unit <span style={{ color: colors.grey03, margin: "0 6px" }}>/</span>
           <span style={{ color: colors.navy, fontWeight: 600 }}>
             {activeView === "queue" && "Review Queue"}
-            {activeView === "performance" && "Model Performance"}
+            {activeView === "performance" && "Analytics"}
             {activeView === "audit" && "Audit Log"}
-            {activeView === "history" && "Search & Export"}
+            {activeView === "history" && "History"}
             {activeView === "settings" && "Settings"}
           </span>
         </div>
@@ -396,7 +420,7 @@ function App() {
                         label="Make"
                         value={vehicle.make}
                         confidence={vehicle.makeConf}
-                        options={["Toyota", "Ford", "Mazda", "Holden", "Subaru", "Nissan", "BMW"]}
+                        options={MAKE_OPTIONS}
                         onSave={(v) => handleCorrect("make", v)}
                       />
                       <AttributeRow
@@ -410,14 +434,14 @@ function App() {
                         label="Colour"
                         value={vehicle.color}
                         confidence={vehicle.colorConf}
-                        options={["Steel Blue", "Red", "Charcoal", "Dark Green", "Gold", "White", "Black"]}
+                        options={COLOUR_OPTIONS}
                         onSave={(v) => handleCorrect("color", v)}
                       />
                       <AttributeRow
                         label="Body Type"
                         value={vehicle.bodyType}
                         confidence={vehicle.bodyTypeConf}
-                        options={["Ute / Pickup", "Sedan", "SUV", "Wagon", "Hatchback", "Van"]}
+                        options={BODY_TYPE_OPTIONS}
                         onSave={(v) => handleCorrect("bodyType", v)}
                       />
                     </div>
@@ -472,6 +496,7 @@ function App() {
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
             downloadJson={downloadJson}
+            threshold={threshold}
           />
         )}
         {activeView === "settings" && <SettingsPage />}
