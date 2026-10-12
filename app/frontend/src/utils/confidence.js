@@ -13,10 +13,21 @@ export function weakestConfidence(capture) {
   return scores.length > 0 ? Math.min(...scores) : null;
 }
 
-// A capture with no scores at all is flagged, because nothing can be trusted yet.
+// True when the model gave no answer for at least one of these four attributes.
+// The model leaves an attribute out ("unknown") when it is not sure enough, so a missing
+// answer is a reason for a person to look, not something to ignore.
+export function hasUnknownAttribute(vehicle) {
+  return [vehicle.make, vehicle.model, vehicle.color, vehicle.bodyType].some(
+    (value) => value === null || value === undefined || value === ""
+  );
+}
+
+// A capture is flagged when its weakest score is under the threshold, when it has no
+// scores at all (nothing can be trusted yet), or when any vehicle has an unknown attribute.
 export function isFlagged(capture, threshold) {
   const weakest = weakestConfidence(capture);
-  return weakest === null || weakest < threshold;
+  if (weakest === null || weakest < threshold) return true;
+  return getVehicles(capture).some(hasUnknownAttribute);
 }
 
 // "Toyota Camry, BMW X5" for display and search.
