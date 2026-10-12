@@ -1,0 +1,7 @@
+# Only needed to run the real models. Install the CPU build of torch first:
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+#   pip install ultralytics
+# Use Python 3.11 or 3.12 for this environment.
+torch
+torchvision
+ultralytics

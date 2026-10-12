@@ -2,7 +2,7 @@ function ConfidenceBar({ value }) {
   const color = value >= 0.8 ? "green" : value >= 0.6 ? "orange" : "red";
 
   return (
-    <div style={{ background: "#333", width: "200px", height: "10px", borderRadius: "5px" }}>
+    <div style={{ background: "#333", width: "200px", height: "10px", borderRadius: "5px", flexShrink: 0 }}>
       <div
         style={{
           background: color,

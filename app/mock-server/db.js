@@ -35,6 +35,7 @@ export function openStore(file) {
     replaceDoc: db.prepare("UPDATE captures SET doc = ? WHERE id = ?"),
     ingestRows: db.prepare("SELECT id, corrected FROM captures WHERE source = 'ingest'"),
     remove: db.prepare("DELETE FROM captures WHERE id = ?"),
+    removeSeeds: db.prepare("DELETE FROM captures WHERE source = 'seed'"),
     addAudit: db.prepare("INSERT INTO audit (time, text) VALUES (?, ?)"),
     audit: db.prepare("SELECT time, text FROM audit ORDER BY id DESC LIMIT ?"),
     count: db.prepare("SELECT COUNT(*) AS n FROM captures"),
@@ -55,6 +56,9 @@ export function openStore(file) {
     seedIfMissing(list) {
       for (const doc of list) if (!q.one.get(doc.id)) q.insert.run(doc.id, "seed", JSON.stringify(doc));
     },
+
+    // Remove the built-in demo captures (used when demo data is switched off).
+    removeSeeded: () => q.removeSeeds.run().changes,
 
     // Bring the stored ingested captures in line with captures.json.
     // New ones are added. Ones nobody has corrected are refreshed, or removed if they are gone

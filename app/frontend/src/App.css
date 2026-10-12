@@ -6,6 +6,18 @@
   box-sizing: border-box;
 }
 
+/* The page never scrolls sideways. "clip" (unlike "hidden") keeps the sticky header and rail working. */
+html,
+body {
+  margin: 0;
+  max-width: 100%;
+  overflow-x: clip;
+}
+#root {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
 .layout {
   display: flex;
   max-width: 1800px;
@@ -32,9 +44,11 @@
   padding: 20px;
 }
 
-/* The three summary tiles wrap onto new rows on narrow screens. */
+/* The three summary tiles wrap onto new rows on narrow screens.
+   margin-bottom leaves a gap between the tiles and the three columns below. */
 .stats-row {
   flex-wrap: wrap;
+  margin-bottom: 16px;
 }
 .stat-tile {
   min-width: 140px;
@@ -85,7 +99,7 @@
 
 /* Navigation rail: a slim bar down the left on large screens... */
 .icon-rail {
-  width: 68px;
+  width: 96px;
   flex-shrink: 0;
   position: sticky;   /* stays put while the page scrolls */
   top: 0;
@@ -94,13 +108,13 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding-top: 20px;
-  gap: 6px;
+  padding-top: 24px;
+  gap: 10px;
 }
 .icon-rail-btn {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
+  width: 78px;
+  height: 74px;
+  border-radius: 14px;
   border: none;
   cursor: pointer;
   display: flex;
@@ -108,6 +122,15 @@
   align-items: center;
   justify-content: center;
   transition: background 0.15s ease, color 0.15s ease;
+}
+.icon-rail-icon {
+  width: 30px;
+  height: 30px;
+}
+.icon-rail-label {
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 5px;
 }
 
 /* ...and a bar along the bottom of the screen on phones, so it stops eating width. */
@@ -119,7 +142,7 @@
     right: 0;
     bottom: 0;
     width: 100%;
-    height: 60px;
+    height: 64px;
     flex-direction: row;
     justify-content: space-around;
     align-items: center;
@@ -127,8 +150,20 @@
     gap: 0;
     z-index: 50;
   }
+  .icon-rail-btn {
+    width: 64px;
+    height: 56px;
+  }
+  .icon-rail-icon {
+    width: 24px;
+    height: 24px;
+  }
+  .icon-rail-label {
+    font-size: 10px;
+    margin-top: 3px;
+  }
   .app-main {
-    padding-bottom: 68px;
+    padding-bottom: 72px;
   }
 }
 

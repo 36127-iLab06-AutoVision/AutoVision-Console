@@ -33,19 +33,13 @@ MAX_IMAGE_BYTES = 8 * 1024 * 1024
 
 
 def run_model(image):
-    """THE ONE FUNCTION THE ML TEAM FILLS IN.
+    """Runs the real models (detector, make/model, body type, colour, damage).
 
-    image: a Pillow image (RGB).
-    Return the model's output in whatever JSON layout the team already uses, for example
-        {"vehicles": [{"vehicle_id": 1, "bounding_box": [120, 80, 640, 470],
-                       "make_model": "Toyota Camry", "confidence": 0.91, ...}]}
-    The adapter converts it, so no reshaping is needed. Box layout, units and confidence
-    scale are set in SETTINGS in adapter.py.
-
-    Load the models ONCE at the top of this file (not inside this function) so each click
-    is fast.
+    image: a Pillow image (RGB). The work is in models.py. If the model files or libraries
+    are missing this raises NotImplementedError, and the console shows that message.
     """
-    raise NotImplementedError("No model is connected yet. Edit run_model() in service.py.")
+    from . import models
+    return models.predict(image)
 
 
 def demo_model(image):

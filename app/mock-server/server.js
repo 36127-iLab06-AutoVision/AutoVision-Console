@@ -16,6 +16,8 @@ const { app, store } = createApp({
   corsOrigin: process.env.CORS_ORIGIN, // when published: the web address of the interface
   // Where the detection service runs, e.g. http://localhost:8000. Leave unset and "Run detection" says no model is connected.
   analyzeUrl: process.env.ANALYZE_URL,
+  // Set SEED_DEMO=1 to also load the three made-up demo captures (c1 to c3). Off by default.
+  seedDemo: process.env.SEED_DEMO === "1",
 });
 
 const PORT = process.env.PORT || 4000;

@@ -215,3 +215,17 @@ def test_unused_fields_reported():
 
 def test_no_vehicles_is_fine():
     assert adapt_file({"vehicles": []}, W, H)["vehicles"] == []
+
+
+def test_a_small_damage_box_does_not_trigger_the_tiny_box_warning():
+    raw = {"vehicle_id": 1, "bounding_box": [100, 50, 500, 350], "make_model": "Toyota Hilux",
+           "damage": [{"class": "scratch", "confidence": 0.46, "bbox": [300, 200, 320, 212]}]}
+    vehicle, warnings = adapt_vehicle(raw, 800, 400)
+    assert vehicle["damage"][0]["box"] is not None
+    assert not any("under 0.5%" in w for w in warnings)
+
+
+def test_a_tiny_vehicle_box_still_triggers_the_warning():
+    raw = {"vehicle_id": 1, "bounding_box": [100, 50, 110, 58], "make_model": "Toyota Hilux"}
+    _, warnings = adapt_vehicle(raw, 800, 400)
+    assert any("under 0.5%" in w for w in warnings)

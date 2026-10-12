@@ -1,9 +1,17 @@
 import { useState } from "react";
 
-function AttributeRow({ label, value, options, onSave }) {
+// Same bands as the confidence bar, with darker text shades so they stay readable on white.
+function confidenceColor(value) {
+  if (value >= 0.8) return "#0A7D3E";
+  if (value >= 0.6) return "#B35C00";
+  return "#C0160D";
+}
+
+function AttributeRow({ label, value, confidence, options, onSave }) {
   const [editing, setEditing] = useState(false);
   const [draftValue, setDraftValue] = useState(value ?? "");
   const missing = value === null || value === undefined || value === "";
+  const hasScore = typeof confidence === "number";
 
   // If the current value isn't in the list (for example a make the model
   // returned that we haven't hardcoded), add it so the dropdown shows it correctly.
@@ -56,6 +64,21 @@ function AttributeRow({ label, value, options, onSave }) {
           >
             ✎
           </button>
+          {!missing && (
+            <span
+              title="Model confidence for this value"
+              style={{
+                marginLeft: "auto",
+                flexShrink: 0,
+                fontSize: "16px",
+                fontWeight: 700,
+                fontVariantNumeric: "tabular-nums",
+                color: hasScore ? confidenceColor(confidence) : "#98A1AB",
+              }}
+            >
+              {hasScore ? `${Math.round(confidence * 100)}%` : "Not available"}
+            </span>
+          )}
         </>
       )}
     </div>

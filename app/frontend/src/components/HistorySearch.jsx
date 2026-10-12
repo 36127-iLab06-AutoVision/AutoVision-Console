@@ -10,7 +10,7 @@ function HistorySearch({ captures, searchQuery, onSearchChange, downloadJson }) 
 
   return (
     <div style={{ padding: "20px", maxWidth: "900px" }}>
-      <h2 style={{ fontSize: "18px", marginBottom: "4px" }}>Search & export</h2>
+      <h2 style={{ fontSize: "18px", marginBottom: "4px" }}>Search & Export</h2>
       <p style={{ fontSize: "13px", color: colors.grey02, marginBottom: "16px" }}>
         Look up past captures and export records for reporting.
       </p>
