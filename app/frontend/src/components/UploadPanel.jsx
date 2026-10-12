@@ -102,7 +102,7 @@ function UploadPanel({ onDetect, detectAvailable }) {
           disabled={!file || !previewUrl || processing || noModel}
           style={{ width: "100%", marginTop: "10px" }}
         >
-          {processing ? "Analysing..." : "Run detection"}
+          {processing ? "Analysing..." : "Run Detection"}
         </button>
 
         {noModel && (

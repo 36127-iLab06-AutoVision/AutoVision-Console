@@ -195,3 +195,10 @@ node_modules/
 dist/
 data/app.db*
 data/uploads/
+
+# PyCharm local settings
+.idea/
+
+# ML model checkpoints - stored locally, not in Git
+*.pt
+*.pth

@@ -9,6 +9,18 @@ import { validateCapture, validateCorrection } from "./validate.js";
 import { openStore } from "./db.js";
 import { seedCaptures } from "./seed.js";
 
+// "2026-10-12 12:17" in the time zone of the computer running the server, not UTC.
+// Set CONSOLE_TIMEZONE (for example Australia/Sydney) to force a zone.
+function localTimestamp(now = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: process.env.CONSOLE_TIMEZONE || undefined,
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).formatToParts(now);
+  const get = (type) => parts.find((p) => p.type === type).value;
+  return `${get("year")}-${get("month")}-${get("day")} ${get("hour")}:${get("minute")}`;
+}
+
 // Captures built by the ingest step. Each one is checked with the same rules as an upload,
 // so bad data is skipped here with a clear message instead of breaking the interface later.
 function loadIngested(processedDir, log) {
@@ -89,9 +101,11 @@ async function askDetector(analyzeUrl, dataUrl, timeoutMs, fetchFn) {
   return { vehicles: body.vehicles, warnings: Array.isArray(body.warnings) ? body.warnings : [] };
 }
 
-export function createApp({ dbFile, processedDir, uploadsDir, corsOrigin, analyzeUrl, analyzeTimeoutMs = 120000, fetchFn = fetch, log = console }) {
+export function createApp({ dbFile, processedDir, uploadsDir, corsOrigin, analyzeUrl, analyzeTimeoutMs = 120000, fetchFn = fetch, seedDemo = false, log = console }) {
   const store = openStore(dbFile);
-  store.seedIfMissing(seedCaptures);
+  // The three built-in demo captures are off by default: the queue shows real images only.
+  if (seedDemo) store.seedIfMissing(seedCaptures);
+  else store.removeSeeded();
   store.syncIngested(loadIngested(processedDir, log));
 
   const app = express();
@@ -205,7 +219,7 @@ export function createApp({ dbFile, processedDir, uploadsDir, corsOrigin, analyz
     const candidate = {
       id: `upload-${crypto.randomUUID().slice(0, 8)}`,
       camera: "Uploaded image",
-      time: new Date().toISOString().slice(0, 16).replace("T", " "),
+      time: localTimestamp(),
       conditions: [],
       images: [{ url: saved.url, confidence: null }],
       vehicles: found.vehicles,

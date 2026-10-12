@@ -32,20 +32,56 @@ from .adapter import SETTINGS, adapt_file
 MAX_IMAGE_BYTES = 8 * 1024 * 1024
 
 
-def run_model(image):
-    """THE ONE FUNCTION THE ML TEAM FILLS IN.
+def tidy_label(text):
+    """The team's body type and colour labels come out lower case ("white", "hatchback").
+    Capitalise those for display. Labels that already have capitals, such as MPV, are kept."""
+    if isinstance(text, str) and text and text == text.lower():
+        return " ".join(word.capitalize() for word in text.split())
+    return text
 
-    image: a Pillow image (RGB).
-    Return the model's output in whatever JSON layout the team already uses, for example
-        {"vehicles": [{"vehicle_id": 1, "bounding_box": [120, 80, 640, 470],
-                       "make_model": "Toyota Camry", "confidence": 0.91, ...}]}
-    The adapter converts it, so no reshaping is needed. Box layout, units and confidence
-    scale are set in SETTINGS in adapter.py.
 
-    Load the models ONCE at the top of this file (not inside this function) so each click
-    is fast.
+def tidy_team_output(raw):
+    """Small clean-ups on the team pipeline's output. It never changes what was predicted.
+
+    - model labels that repeat the make ("Toyota Hilux" under make "Toyota") lose the repeat
+    - body type and colour labels are capitalised
     """
-    raise NotImplementedError("No model is connected yet. Edit run_model() in service.py.")
+    if not isinstance(raw, dict):
+        return raw
+    for vehicle in raw.get("vehicles", []):
+        make, model = vehicle.get("make"), vehicle.get("model")
+        if isinstance(make, str) and isinstance(model, str):
+            if model.lower().startswith(make.lower() + " "):
+                vehicle["model"] = model[len(make):].strip()
+        for key in ("body_type", "colour"):
+            value = vehicle.get(key)
+            if isinstance(value, dict) and "label" in value:
+                value["label"] = tidy_label(value["label"])
+    return raw
+
+
+def run_model(image):
+    """Runs the real models (detector, make/model, body type, colour, damage).
+
+    image: a Pillow image (RGB). Two pipelines are available, chosen by MODEL_PIPELINE:
+      team     (default) the ML team's own pipeline, modeling/inference.py
+      console  the console's earlier pipeline, models.py (kept for comparison)
+    Both are loaded on first use, so the service and the tests start without torch installed.
+    If the model files or libraries are missing this raises NotImplementedError, and the
+    console shows that message.
+    """
+    which = os.environ.get("MODEL_PIPELINE", "team").strip().lower()
+    try:
+        if which == "console":
+            from . import models
+            return models.predict(image)
+        from .modeling.inference import predict_image
+        return tidy_team_output(predict_image(image))
+    except (ImportError, FileNotFoundError) as e:
+        raise NotImplementedError(
+            f"The models could not be loaded ({e}). Install requirements-models.txt and put the "
+            "model files in the models folder (or set MODELS_DIR for MODEL_PIPELINE=console)."
+        )
 
 
 def demo_model(image):

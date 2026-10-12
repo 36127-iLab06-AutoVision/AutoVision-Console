@@ -142,7 +142,7 @@ def _read_attribute(value, settings, warnings, label):
     return (text or None), None
 
 
-def _box_from_numbers(nums, layout, units, width, height, warnings):
+def _box_from_numbers(nums, layout, units, width, height, warnings, warn_small=True):
     """Convert four numbers into a percentage box {x,y,w,h}."""
     a, b, c, d = [float(n) for n in nums]
     if units == "auto":
@@ -192,7 +192,9 @@ def _box_from_numbers(nums, layout, units, width, height, warnings):
         "w": round((x2 - x1) / width * 100, 2),
         "h": round((y2 - y1) / height * 100, 2),
     }
-    if box["w"] * box["h"] / 100 < 0.5:
+    # A vehicle this small usually means the box layout or units are wrong. Damage (a scratch,
+    # a broken lamp) is small by nature, so damage boxes skip this check.
+    if warn_small and box["w"] * box["h"] / 100 < 0.5:
         warnings.append("box covers under 0.5% of the image, is the box format right?")
     return box
 
@@ -204,7 +206,7 @@ def box_to_percent(box, width, height, settings=None):
     return _box_to_percent(box, width, height, settings, warnings)
 
 
-def _box_to_percent(box, width, height, settings, warnings):
+def _box_to_percent(box, width, height, settings, warnings, warn_small=True):
     layout, units = settings["box_format"], settings["box_units"]
     if isinstance(box, dict):
         norm = {normalize_key(k): v for k, v in box.items()}
@@ -231,7 +233,7 @@ def _box_to_percent(box, width, height, settings, warnings):
         nums = [float(n) for n in nums]
     except (TypeError, ValueError):
         raise ValueError(f"box values {nums!r} are not all numbers")
-    return _box_from_numbers(nums, layout, units, width, height, warnings)
+    return _box_from_numbers(nums, layout, units, width, height, warnings, warn_small)
 
 
 def _read_list(value, label, warnings):
@@ -287,7 +289,7 @@ def _read_damage(value, settings, width, height, warnings):
         box = None
         if box_raw is not None:
             try:
-                box = _box_to_percent(box_raw, width, height, settings, warnings)
+                box = _box_to_percent(box_raw, width, height, settings, warnings, warn_small=False)
             except ValueError as e:
                 warnings.append(f"{where}: box ignored ({e})")
         else:

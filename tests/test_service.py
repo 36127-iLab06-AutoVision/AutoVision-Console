@@ -17,11 +17,12 @@ def data_url(fmt="JPEG", size=(1000, 500)):
     return f"data:{mime};base64," + base64.b64encode(buf.getvalue()).decode()
 
 
-def test_no_model_connected_gives_501_with_a_clear_message(monkeypatch):
+def test_no_model_files_gives_501_with_a_clear_message(monkeypatch, tmp_path):
     monkeypatch.delenv("DEMO_MODEL", raising=False)
+    monkeypatch.setenv("MODELS_DIR", str(tmp_path))
     r = client.post("/analyze", json={"image": data_url()})
     assert r.status_code == 501
-    assert "No model is connected" in r.json()["detail"]
+    assert "MODELS_DIR" in r.json()["detail"]
 
 
 def test_demo_mode_returns_vehicles_scaled_to_the_image_and_says_it_is_fake(monkeypatch):

@@ -48,7 +48,10 @@ const modelsByMake = {
   BMW: ["3 Series", "X5"],
 };
 
-const PLACEHOLDER_FIELDS = ["Day / night", "Camera / checkpoint ID", "GPS location", "Model version", "Vehicle year / trim"];
+const PLACEHOLDER_FIELDS = ["Day / Night", "Camera / Checkpoint Identifier", "GPS Location", "Model Version", "Vehicle Year / Trim"];
+
+// Names shown to people for each editable field (the keys are the names the server uses).
+const FIELD_LABELS = { make: "Make", model: "Model", color: "Colour", bodyType: "Body Type" };
 
 function App() {
   const [captures, setCaptures] = useState([]);
@@ -105,8 +108,28 @@ function App() {
     return <div style={{ padding: "40px", textAlign: "center" }}>Loading captures...</div>;
   }
 
+  // Nothing in the queue yet: still show the upload panel so the first image can be added.
   if (!capture) {
-    return <div style={{ padding: "40px", textAlign: "center" }}>No captures available yet.</div>;
+    return (
+      <div style={{ background: colors.paper, minHeight: "100vh", color: colors.grey01, display: "flex" }}>
+        <IconRail activeView={activeView} onNavigate={setActiveView} />
+        <div className="app-main" style={{ flex: 1, minWidth: 0 }}>
+          <div className="app-top">
+            <Header />
+          </div>
+          <div className="layout">
+            <div className="sidebar card" style={{ background: colors.white, padding: "16px" }}>
+              <UploadPanel onDetect={handleDetect} detectAvailable={detectAvailable} />
+            </div>
+            <div className="viewer">
+              <p style={{ color: colors.grey02, textAlign: "center", marginTop: "60px" }}>
+                No captures yet. Upload an image and select Run Detection to begin.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   // A capture can hold several vehicles. Older captures are their own single vehicle.
@@ -184,7 +207,7 @@ function App() {
           })
         );
         setAuditLog(result.auditLog);
-        setToast({ text: `${field} updated`, isError: false });
+        setToast({ text: `${FIELD_LABELS[field] || field} updated`, isError: false });
       })
       .catch(handleRequestError);
   }
@@ -225,10 +248,10 @@ function App() {
 
   const flaggedCount = captures.filter((c) => isFlagged(c, threshold)).length;
   const scored = captures.map(weakestConfidence).filter((s) => s !== null);
-  const avgConfidence =
-    scored.length > 0
-      ? `${Math.round((scored.reduce((t, s) => t + s, 0) / scored.length) * 100)}%`
-      : "n/a";
+  // The average of each capture's weakest score. Coloured with the same bands as the confidence bars.
+  const avgScore = scored.length > 0 ? scored.reduce((t, s) => t + s, 0) / scored.length : null;
+  const avgConfidence = avgScore !== null ? `${Math.round(avgScore * 100)}%` : "Not available";
+  const avgColor = avgScore === null ? colors.grey02 : avgScore >= 0.8 ? colors.green : avgScore >= 0.6 ? "#B35C00" : colors.red;
 
   return (
     <div style={{ background: colors.paper, minHeight: "100vh", color: colors.grey01, display: "flex" }}>
@@ -242,10 +265,10 @@ function App() {
           Home <span style={{ color: colors.grey03, margin: "0 6px" }}>/</span>
           Vehicle Identification Unit <span style={{ color: colors.grey03, margin: "0 6px" }}>/</span>
           <span style={{ color: colors.navy, fontWeight: 600 }}>
-            {activeView === "queue" && "Review queue"}
-            {activeView === "performance" && "Model performance"}
-            {activeView === "audit" && "Audit log"}
-            {activeView === "history" && "Search & export"}
+            {activeView === "queue" && "Review Queue"}
+            {activeView === "performance" && "Model Performance"}
+            {activeView === "audit" && "Audit Log"}
+            {activeView === "history" && "Search & Export"}
             {activeView === "settings" && "Settings"}
           </span>
         </div>
@@ -255,9 +278,9 @@ function App() {
           <>
             <div className="stats-row" style={{ display: "flex", gap: "16px", padding: "16px 20px 0" }}>
               {[
-                { label: "Total captures", value: captures.length, color: colors.navy },
-                { label: "Flagged for review", value: flaggedCount, color: colors.red },
-                { label: "Avg. confidence", value: avgConfidence, color: colors.green },
+                { label: "Total Captures", value: captures.length, color: colors.navy },
+                { label: "Flagged for Review", value: flaggedCount, color: colors.red },
+                { label: "Average Weakest Confidence", value: avgConfidence, color: avgColor },
               ].map((stat) => (
                 <div
                   key={stat.label}
@@ -271,7 +294,7 @@ function App() {
                   }}
                 >
                   <div style={{ fontSize: "26px", fontWeight: 700, color: stat.color }}>{stat.value}</div>
-                  <div style={{ fontSize: "12px", color: colors.grey02, marginTop: "2px" }}>{stat.label}</div>
+                  <div style={{ fontSize: "15px", fontWeight: 500, color: colors.grey02, marginTop: "2px" }}>{stat.label}</div>
                 </div>
               ))}
             </div>
@@ -294,11 +317,17 @@ function App() {
                     <p style={{ margin: 0 }}>{capture.camera} - {capture.time}</p>
                     <label style={{ fontSize: "12px", display: "flex", alignItems: "center", gap: "6px", cursor: "pointer" }}>
                       <input type="checkbox" checked={showBoxes} onChange={(e) => setShowBoxes(e.target.checked)} />
-                      Show detections
+                      Show Detections
                     </label>
                   </div>
 
-                  {weakest !== null && <ConfidenceBar value={weakest} />}
+                  {weakest !== null && (
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                      <ConfidenceBar value={weakest} />
+                      <span style={{ fontSize: "13px", fontWeight: 600 }}>{Math.round(weakest * 100)}%</span>
+                      <span style={{ fontSize: "12px", color: colors.grey02 }}>Weakest Confidence</span>
+                    </div>
+                  )}
 
                   <div style={{ maxWidth: "720px", margin: "20px auto 0" }}>
                     <VehicleViewer
@@ -315,7 +344,7 @@ function App() {
 
                 {auditLog.length > 0 && (
                   <div style={{ marginTop: "20px", fontSize: "13px", background: colors.grey04, padding: "12px", borderRadius: "6px" }}>
-                    <strong>Recent corrections:</strong>
+                    <strong>Recent Corrections:</strong>
                     <ul>
                       {auditLog.slice(0, 5).map((entry, i) => (
                         <li key={i}>{entry.time} - {entry.text}</li>
@@ -328,7 +357,7 @@ function App() {
               <div className="attributes card" style={{ background: colors.white, padding: "16px" }}>
                 <div style={{ marginBottom: "16px", fontSize: "12px" }}>
                   <label>
-                    Flag threshold
+                    Flag Threshold
                     <input
                       type="range"
                       min="0.5"
@@ -354,36 +383,40 @@ function App() {
                       lineHeight: 1.5,
                     }}
                   >
-                    <strong style={{ display: "block", color: colors.grey01, marginBottom: "4px" }}>No vehicles detected</strong>
-                    The model found no vehicles in this image. If you can see one, flag it for the ML team.
+                    <strong style={{ display: "block", color: colors.grey01, marginBottom: "4px" }}>No Vehicles Detected</strong>
+                    The model found no vehicles in this image. If you can see one, flag it for the Machine Learning team.
                   </div>
                 ) : (
                   <>
                     <VehicleSelector vehicles={vehicles} selectedId={vehicle.id} onSelect={setSelectedVehicleId} />
 
-                    <strong>Extracted attributes</strong>
+                    <strong style={{ fontSize: "18px" }}>Extracted Attributes</strong>
                     <div style={{ marginTop: "12px" }}>
                       <AttributeRow
                         label="Make"
                         value={vehicle.make}
+                        confidence={vehicle.makeConf}
                         options={["Toyota", "Ford", "Mazda", "Holden", "Subaru", "Nissan", "BMW"]}
                         onSave={(v) => handleCorrect("make", v)}
                       />
                       <AttributeRow
                         label="Model"
                         value={vehicle.model}
+                        confidence={vehicle.modelConf}
                         options={modelsByMake[vehicle.make] || []}
                         onSave={(v) => handleCorrect("model", v)}
                       />
                       <AttributeRow
                         label="Colour"
                         value={vehicle.color}
+                        confidence={vehicle.colorConf}
                         options={["Steel Blue", "Red", "Charcoal", "Dark Green", "Gold", "White", "Black"]}
                         onSave={(v) => handleCorrect("color", v)}
                       />
                       <AttributeRow
-                        label="Body type"
+                        label="Body Type"
                         value={vehicle.bodyType}
+                        confidence={vehicle.bodyTypeConf}
                         options={["Ute / Pickup", "Sedan", "SUV", "Wagon", "Hatchback", "Van"]}
                         onSave={(v) => handleCorrect("bodyType", v)}
                       />
@@ -391,7 +424,7 @@ function App() {
 
                     {(features === null || features.length > 0) && (
                       <>
-                        <strong style={{ display: "block", marginTop: "20px" }}>Features</strong>
+                        <strong style={{ display: "block", marginTop: "20px", fontSize: "18px" }}>Features</strong>
                         {features === null ? (
                           <p style={{ fontSize: "13px", color: "#666", fontStyle: "italic" }}>
                             Not assessed. The model has not checked this vehicle for features.
@@ -402,15 +435,13 @@ function App() {
                       </>
                     )}
 
-                    <strong style={{ display: "block", marginTop: "20px" }}>Damage</strong>
+                    <strong style={{ display: "block", marginTop: "20px", fontSize: "18px" }}>Damage</strong>
                     <DamageList items={damage} />
                   </>
                 )}
 
-                <strong style={{ display: "block", marginTop: "20px" }}>Additional metadata</strong>
-                <div style={{ fontSize: "11px", color: colors.placeholderText, marginBottom: "8px" }}>
-                  Awaiting detection pipeline
-                </div>
+                <strong style={{ display: "block", marginTop: "20px", fontSize: "18px" }}>Additional Metadata</strong>
+                <div style={{ marginBottom: "8px" }} />
                 {PLACEHOLDER_FIELDS.map((label) => (
                   <div
                     key={label}

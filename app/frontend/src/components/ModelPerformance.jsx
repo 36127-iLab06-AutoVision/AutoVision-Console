@@ -23,7 +23,7 @@ function ModelPerformance({ captures, threshold }) {
   const flaggedCount = captures.filter((cap) => isFlagged(cap, threshold)).length;
 
   const makeModel = makeAndModelAreCombined(captures)
-    ? [{ label: "Make & model", value: average(captures, "makeConf") }]
+    ? [{ label: "Make & Model", value: average(captures, "makeConf") }]
     : [
         { label: "Make", value: average(captures, "makeConf") },
         { label: "Model", value: average(captures, "modelConf") },
@@ -32,7 +32,7 @@ function ModelPerformance({ captures, threshold }) {
   const metrics = [
     ...makeModel,
     { label: "Colour", value: average(captures, "colorConf") },
-    { label: "Body type", value: average(captures, "bodyTypeConf") },
+    { label: "Body Type", value: average(captures, "bodyTypeConf") },
   ];
 
   return (
@@ -58,7 +58,21 @@ function ModelPerformance({ captures, threshold }) {
             {m.value === null ? (
               <span style={{ fontSize: "12px", color: "#98A1AB" }}>Not available</span>
             ) : (
-              <ConfidenceBar value={m.value} />
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <ConfidenceBar value={m.value} />
+                <span
+                  style={{
+                    width: "44px",
+                    textAlign: "right",
+                    fontSize: "13px",
+                    fontWeight: 600,
+                    color: "#2B3236",
+                    fontVariantNumeric: "tabular-nums",
+                  }}
+                >
+                  {Math.round(m.value * 100)}%
+                </span>
+              </div>
             )}
           </div>
         ))}

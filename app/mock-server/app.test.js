@@ -25,7 +25,7 @@ function workspace() {
 
 // Starts the API on a free port. Call stop() to simulate shutting the server down.
 async function start(ws, extra = {}) {
-  const { app, store } = createApp({ dbFile: ws.dbFile, processedDir: ws.processedDir, uploadsDir: ws.uploadsDir, log: quiet, ...extra });
+  const { app, store } = createApp({ dbFile: ws.dbFile, processedDir: ws.processedDir, uploadsDir: ws.uploadsDir, seedDemo: true, log: quiet, ...extra });
   const server = await new Promise((resolve) => {
     const s = app.listen(0, () => resolve(s));
   });
@@ -262,4 +262,24 @@ test("Run detection refuses bad images and bad answers, and leaves nothing behin
   }
   const left = fs.existsSync(ws.uploadsDir) ? fs.readdirSync(ws.uploadsDir) : [];
   assert.deepEqual(left, []);
+});
+
+test("demo captures are off by default: only real captures are listed", async () => {
+  const ws = workspace();
+  ws.writeIngested([ingested("img_1", "Kia")]);
+  const s = await start(ws, { seedDemo: false });
+  const ids = (await s.call("GET", "/api/captures")).data.map((c) => c.id);
+  assert.deepEqual(ids, ["img_1"]);
+  await s.stop();
+});
+
+test("switching demo captures off removes ones stored earlier, but keeps uploads", async () => {
+  const ws = workspace();
+  const first = await start(ws);
+  await first.call("POST", "/api/captures", { id: "upload-1", camera: "Uploaded image", time: "t", vehicles: [] });
+  await first.stop();
+  const second = await start(ws, { seedDemo: false });
+  const ids = (await second.call("GET", "/api/captures")).data.map((c) => c.id);
+  assert.deepEqual(ids, ["upload-1"]);
+  await second.stop();
 });
