@@ -35,11 +35,25 @@ MAX_IMAGE_BYTES = 8 * 1024 * 1024
 def run_model(image):
     """Runs the real models (detector, make/model, body type, colour, damage).
 
-    image: a Pillow image (RGB). The work is in models.py. If the model files or libraries
-    are missing this raises NotImplementedError, and the console shows that message.
+    image: a Pillow image (RGB). Two pipelines are available, chosen by MODEL_PIPELINE:
+      team     (default) the ML team's own pipeline, modeling/inference.py
+      console  the console's earlier pipeline, models.py (kept for comparison)
+    Both are loaded on first use, so the service and the tests start without torch installed.
+    If the model files or libraries are missing this raises NotImplementedError, and the
+    console shows that message.
     """
-    from . import models
-    return models.predict(image)
+    which = os.environ.get("MODEL_PIPELINE", "team").strip().lower()
+    try:
+        if which == "console":
+            from . import models
+            return models.predict(image)
+        from .modeling.inference import predict_image
+        return predict_image(image)
+    except (ImportError, FileNotFoundError) as e:
+        raise NotImplementedError(
+            f"The models could not be loaded ({e}). Install requirements-models.txt and put the "
+            "model files in the models folder (or set MODELS_DIR for MODEL_PIPELINE=console)."
+        )
 
 
 def demo_model(image):
