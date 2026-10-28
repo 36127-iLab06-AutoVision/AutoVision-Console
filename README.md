@@ -73,5 +73,12 @@ output into the contract format belongs there too.
 
 ## Team
 
-- 
-- Industry supervisor: Dr Ali Haidar
+- Industry supervisor: Dr Ali Haidar (NSW Police)
+- Mentor: William Feng
+- Ranjan Khanal: Project Manager
+- Alesh Shrestha: Modelling Lead
+- Fizza Anwar: Data Engineer
+- Laura Pacheco: Research and documentation
+- Muhammad Asif: ML Engineer, Modelling
+- Victor Rono: Data Analyst and Quality Assurance
+- Vivek Rai: Product Lead, UI Lead and Integration Engineer
